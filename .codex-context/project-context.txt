@@ -1,0 +1,107 @@
+NYC Round 3 Session 1 — Frontend Project Context
+
+Project paths:
+- Workspace: C:\Users\victus\Desktop\hackathon\nyc-r3s1
+- Frontend: C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend
+- Backend: C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend
+- Infrastructure: C:\Users\victus\Desktop\hackathon\nyc-r3s1\infrastructure
+
+Baseline:
+- Frontend stack: Next.js 16.3, React 19.2.8, TypeScript 6.0.3, Node.js 24, Docker.
+- Live frontend: Cloud Run service nycr3s1-frontend in GCP project nychacksishv-core-20260808, region asia-south1.
+- Live backend URL used by the frontend: https://nycr3s1-backend-s2tvvhxdpa-el.a.run.app
+- Preserve the existing GCP infrastructure and local backups unless explicitly instructed otherwise.
+- Never place passwords, tokens, credentials, private keys, or other secrets in this file.
+- User instruction on 2026-08-09: do not add .codex-context/ to .gitignore. This file is intentionally unignored and must not be committed or pushed without explicit approval.
+
+[2026-08-09 12:11:37 IST]
+Task:
+Pull the current frontend branch and verify that the checked-out commit is correct.
+Changes:
+Ran git pull --ff-only; repository was already up to date. No application source was changed. Created this unignored local context log as explicitly requested.
+Files changed:
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\.codex-context\project-context.txt
+Verification:
+Local HEAD aa6e0412271f8b58f5ee9f0c556a28825bf52097 exactly matches origin/main and GitHub refs/heads/main. npm run lint, npm run typecheck, and npm run build all passed. GitHub Actions run 31297720365 completed successfully.
+Deployment:
+No deployment was initiated. The existing successful workflow run for this commit was verified read-only.
+Commit:
+NOT COMMITTED — Current local HEAD: aa6e0412271f8b58f5ee9f0c556a28825bf52097
+
+[2026-08-09 13:00:59 IST]
+Task:
+Create the complete RollbackReady project PRD in synchronized Markdown and DOCX formats, assess feasibility, and remove diagram images when the user said they were not needed.
+Changes:
+Created the project-level Markdown PRD and generated the matching business-brief DOCX. The PRD defines the evidence-first six-hour MVP, full roadmap, user journey, deterministic risk rules, sandbox architecture, API and data contracts, security boundaries, Gemini limits, tests, demo script, and feasibility verdict. No diagram or other image is embedded in either deliverable.
+Files changed:
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\docs\rollbackready-prd.md
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\docs\RollbackReady-PRD.docx
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\.codex-context\project-context.txt
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\.codex-context\project-context.txt
+Verification:
+Confirmed 23 synchronized PRD sections, all required product and API terms, nine primary-source URLs, 15 fixed-width tables, valid Word numbering with list restarts, page-number fields, and zero embedded media. Rendered the final DOCX through Microsoft Word to a 28-page PDF and visually inspected every page; no clipping, overlap, broken numbering, or layout defects remain. Final SHA-256: Markdown 082b89a153ccab5d46f9eebc3aea091e3513ec88e9e3b4a2b64dca49a9cb9548; DOCX 38cfae0b45a6dfd48811b272bba71c4c387ec5f406014a5cc7a0e58181515aab.
+Deployment:
+No application code, production database, cloud infrastructure, deployment, or external service was changed.
+Commit:
+NOT COMMITTED - Frontend local HEAD remains aa6e0412271f8b58f5ee9f0c556a28825bf52097. The .codex-context directory remains unignored and no .gitignore file was changed.
+
+[2026-08-09 13:30:38 IST]
+Task:
+Record the backend-only foundation and GCP readiness rollout while leaving frontend work untouched.
+Changes:
+No frontend source, configuration, deployment, or .gitignore file was changed by the foundation patch. Existing and concurrent frontend changes were preserved. Only this intentionally unignored context log was appended.
+Verification:
+The live Cloud Run frontend at https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app returned HTTP 200 after backend revision nycr3s1-backend-00010-795 and the matching GKE backend image were deployed. Both backend targets returned HTTP 200 for root, health, readiness, and database health. Verified backend Vertex model: gemini-3.6-flash in global.
+Deployment:
+Frontend was not deployed. Backend image asia-south1-docker.pkg.dev/nychacksishv-core-20260808/nycr3s1-images/backend:foundation-20260809-130731 is live on Cloud Run and GKE. Cloud Run rollback revision is nycr3s1-backend-00009-7lp; GKE rollback image is asia-south1-docker.pkg.dev/nychacksishv-core-20260808/nycr3s1-images/backend:c22b269da411a70a74813db0d257f97f42fb5d41.
+Commit:
+NOT COMMITTED OR GIT-PUSHED - No frontend work, RollbackReady product feature, Git commit, or Git push was performed. Context logs remain intentionally unignored and .gitignore was unchanged.
+
+[2026-08-09 13:51:56 IST]
+Task:
+Implement the complete RollbackReady hackathon MVP UI and continue until the project is finished, without committing or deploying.
+Changes:
+Replaced the infrastructure placeholder with a responsive, accessible six-stage RollbackReady evidence stepper: project upload and built-in unsafe-phone demo, migration-history comparison, deterministic risk dashboard, ordered failure timeline, LangGraph safer-plan phases, fresh-baseline verification state, and downloadable sanitized JSON evidence report. Added explicit loading, empty, error, static-only, unsafe, unverified, verified, and production-not-performed states. Added a server-side Next.js catch-all proxy for every /api/v1 request so browser uploads do not target the backend origin directly. Updated product metadata, visual system, environment documentation, and README. No images or generated visual assets were created.
+Primary product files:
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\page.tsx
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\globals.css
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\api\rollbackready\[...path]\route.ts
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\layout.tsx
+Verification:
+npm run typecheck passed; npm run lint passed; the optimized Next.js 16 production build passed and emitted the static product page plus dynamic server proxy route; git diff --check passed.
+Deployment:
+No frontend deployment or external write was performed. The existing live frontend was not changed.
+Commit:
+NOT COMMITTED OR GIT-PUSHED - Frontend HEAD remains aa6e0412271f8b58f5ee9f0c556a28825bf52097. The context directory remains deliberately unignored; no .gitignore entry was added.
+
+[2026-08-09 14:16:43 IST]
+Task:
+Finish and recheck the complete RollbackReady hackathon experience against the final backend implementation.
+Changes:
+Clarified the risk dashboard label as CANDIDATE VERDICT and preserved UNSAFE for the submitted migration while presenting VERIFIED_FOR_REVIEW only for the independently verified recovery plan and final plan-evidence panel. Kept the safer-plan narrative human-readable while retaining quoted identifiers in executable SQL. No image or generated visual asset was created.
+Files changed:
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\page.tsx
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\app\rollbackready\service.py
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\tests\test_rollbackready.py
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\.codex-context\project-context.txt
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\.codex-context\project-context.txt
+Verification:
+npm run lint, npm run typecheck, and npm run build passed. A fresh in-app browser test completed the built-in unsafe-phone analysis, generated the constrained LangGraph fallback plan, and verified it in a clean PostgreSQL 18 sandbox. The rendered result retained CANDIDATE VERDICT: UNSAFE, showed the plan and evidence report as VERIFIED FOR REVIEW, displayed no error banner, had no horizontal overflow, and emitted no console warnings or errors. Backend Ruff and all 30 tests passed.
+Deployment:
+No frontend or backend deployment, external write, production database access, commit, push, or pull request was performed. Local smoke-test processes were stopped after verification.
+Commit:
+NOT COMMITTED OR GIT-PUSHED - Frontend HEAD remains aa6e0412271f8b58f5ee9f0c556a28825bf52097. Both context logs remain intentionally unignored and no .gitignore file was changed.
+
+[2026-08-09 15:17:23 IST]
+Task:
+Resolve the final RollbackReady audit blockers and the high-priority correctness/security gaps practical within the hackathon MVP, recheck the freshly restarted project end to end, and keep the work local without committing, pushing, or deploying.
+Changes:
+Completed owner-aware report persistence and Clerk identity propagation while preserving an explicit anonymous hackathon mode; added ownership and statement-evidence Alembic revisions; corrected the migration head; made authentication optional or required by configuration; added safe rate limiting, active-analysis capacity, 24-hour background expiry cleanup, runtime and fixture-row ceilings, Docker CPU/memory/PID limits, and safer simulation error persistence/logging. Expanded schema fingerprints to cover columns, constraints, indexes, views, sequences, enums, triggers, functions, policies, and privileges; added baseline-column content hashes; added the final interruption boundary; corrected per-statement execution evidence; redacted PostgreSQL dollar-quoted values; compared generated plans with the intended candidate target; executed every generated verification assertion; and verified plan interruption recovery and idempotent retry across every boundary. The constrained LangChain/LangGraph planner remains the only agent workflow, with deterministic fallback and deterministic SQL verification. Updated the frontend for optional Clerk sessions, anonymous demo access, authorization forwarding, responsive 390px layout, current deployment smoke text, and a reliable attachment-based sanitized JSON report download. No images were created.
+Verification:
+Backend Ruff passed and all 40 tests passed. A fresh real PostgreSQL 18 Docker run kept the unsafe phone candidate UNSAFE with two confirmed high findings. The deterministic recovery plan reached VERIFIED_FOR_REVIEW only after all seven evidence dimensions passed, three verification assertions executed, four plan statements were recorded as PASS, and interruption boundaries 0 through 4 recovered. A real no-op plan failed target-schema verification. Frontend ESLint, TypeScript, and the optimized Next.js 16 production build passed. The in-app browser completed all six stages; the candidate and plan verdicts stayed separate; the report download emitted a browser download, parsed as valid JSON, contained no fixture values, and stated that production execution was false. At a 390px viewport, document width equaled client width and no overflowing elements were found.
+Deployment:
+No cloud deployment, infrastructure mutation, production database access, commit, push, or pull request was performed. The existing live infrastructure was not changed.
+Known production limitation:
+Raw verification artifacts remain process-local by design. Single-instance deployment settings reduce mid-lifecycle routing risk, but a container or pod replacement can still interrupt a staged or unverified analysis. Restart-safe asynchronous workers and encrypted temporary artifact storage remain roadmap work and the MVP must not be described as production-ready.
+Commit:
+NOT COMMITTED OR GIT-PUSHED. Both .codex-context logs remain intentionally unignored, neither log was added to .gitignore, and no .gitignore file was changed.
