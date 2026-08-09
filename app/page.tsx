@@ -58,10 +58,23 @@ type Evidence = { key: string; label: string; status: EvidenceStatus; source: st
 type TimelineEvent = { sequence: number; occurred_at: string; event_type: string; status: string; message: string; statement_index: number | null };
 type PlanPhase = { name: string; objective: string; sql: string[]; application_changes: string[]; verification_sql: string[]; rollback_guidance: string };
 type Plan = { id: string; state: string; provider: string; model: string; strategy: string; summary: string; assumptions: string[]; phases: PlanPhase[]; limitations: string[] };
+type AiInsightKind = "finding_explanations" | "migration_summary" | "plan_rejection";
+type AiInsight = {
+  id: string;
+  analysis_id: string;
+  kind: AiInsightKind;
+  content: string;
+  derived_from: string[];
+  provider: string;
+  model: string;
+  prompt_template_version: string;
+  generated_at: string;
+  disclaimer: string;
+};
 type Verification = { id: string; status: EvidenceStatus; verdict: string; dimensions: Evidence[] };
 type Analysis = {
   id: string; status: string; evidence_level: string; verdict: string; provider: string | null; candidate_migration: string;
-  findings: Finding[]; evidence: Evidence[]; limitations: string[]; plans: Plan[];
+  findings: Finding[]; evidence: Evidence[]; limitations: string[]; plans: Plan[]; insights: AiInsight[];
   auth_mode?: string;
   manifest: { archive_sha256: string; archive_byte_count: number; has_seed: boolean; fixture_source?: string; legacy_query_source?: string; legacy_query_count: number; migrations: Array<{ folder: string; sha256: string; statement_count: number; candidate: boolean }> };
 };
@@ -71,6 +84,7 @@ type SavedWorkspace = {
   timeline: TimelineEvent[];
   plan: Plan | null;
   verification: Verification | null;
+  insights: AiInsight[];
   mode: "none" | "sample" | "upload";
 };
 
@@ -92,6 +106,11 @@ const riskFamilies = [
   { id: "integrity", categories: ["CONSTRAINT_EXISTING_DATA"], icon: Fingerprint, label: "Integrity", value: "Constraint conflicts", tone: "amber", detail: "Existing rows that violate NOT NULL, UNIQUE, or foreign-key changes." },
   { id: "compatibility", categories: ["BACKWARD_INCOMPATIBILITY"], icon: GitBranch, label: "Compatibility", value: "Legacy query replay", tone: "violet", detail: "Old application shapes executed against the post-migration schema." },
   { id: "recovery", categories: ["LOCK_RISK_HEURISTIC"], icon: RotateCcw, label: "Recovery", value: "Retry + idempotency", tone: "cyan", detail: "Interrupted execution, remaining state, retry behavior, and repair class." },
+];
+const insightKinds: { kind: AiInsightKind; label: string }[] = [
+  { kind: "finding_explanations", label: "Finding explanations" },
+  { kind: "migration_summary", label: "Migration summary" },
+  { kind: "plan_rejection", label: "Plan rejection context" },
 ];
 
 const deploymentPhases = [
@@ -129,6 +148,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [plan, setPlan] = useState<Plan | null>(null);
   const [verification, setVerification] = useState<Verification | null>(null);
+  const [insights, setInsights] = useState<AiInsight[]>([]);
   const [candidate, setCandidate] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -156,6 +176,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
         setTimeline(workspace.timeline ?? []);
         setPlan(workspace.plan);
         setVerification(workspace.verification);
+        setInsights(workspace.insights ?? []);
         setWorkspaceMode(workspace.mode ?? "none");
       });
     } catch {
@@ -166,9 +187,9 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
 
   useEffect(() => {
     if (!analysis) return;
-    const workspace: SavedWorkspace = { analysis, timeline, plan, verification, mode: workspaceMode };
+    const workspace: SavedWorkspace = { analysis, timeline, plan, verification, insights, mode: workspaceMode };
     window.sessionStorage.setItem(workspaceStorageKey, JSON.stringify(workspace));
-  }, [analysis, timeline, plan, verification, workspaceMode]);
+  }, [analysis, timeline, plan, verification, insights, workspaceMode]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -242,6 +263,11 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     document.getElementById(id)?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", block: "start" });
   }
 
+  function applyAnalysis(analysisData: Analysis | null) {
+    setAnalysis(analysisData);
+    setInsights(analysisData?.insights ?? []);
+  }
+
   function selectProjectFile(selected: File | null) {
     if (!selected) return;
     if (!selected.name.toLowerCase().endsWith(".zip")) {
@@ -258,6 +284,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     setTimeline([]);
     setPlan(null);
     setVerification(null);
+    setInsights([]);
     setActiveRiskFamily(null);
     setWorkspaceMode("none");
     window.sessionStorage.removeItem(workspaceStorageKey);
@@ -274,7 +301,9 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     try {
       const staged = await api<Analysis>("/analyses", { method: "POST", body: form });
       setWorkspaceMode(mode);
-      setAnalysis(staged); setTimeline([]); setBusy("Running deterministic PostgreSQL evidence pipeline");
+      applyAnalysis(staged);
+      setTimeline([]);
+      setBusy("Running deterministic PostgreSQL evidence pipeline");
       eventSource = new EventSource(`/api/rollbackready/analyses/${staged.id}/events`);
       eventSource.addEventListener("timeline", (event) => {
         try {
@@ -287,7 +316,8 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
       eventSource.addEventListener("complete", () => eventSource?.close());
       toast.loading("Breaking the migration at every supported boundary...", { id: toastId });
       const completed = await api<Analysis>(`/analyses/${staged.id}/run`, { method: "POST" });
-      setAnalysis(completed); setTimeline(await api<TimelineEvent[]>(`/analyses/${staged.id}/timeline`));
+      applyAnalysis(completed);
+      setTimeline(await api<TimelineEvent[]>(`/analyses/${staged.id}/timeline`));
       toast.success("Evidence run complete", { id: toastId, description: completed.verdict.replaceAll("_", " ") });
       moveTo("risks");
     } catch (caught) {
@@ -309,7 +339,8 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     setBusy("Running LangGraph recovery planner"); setError(null);
     try {
       const generated = await api<Plan>(`/analyses/${analysis.id}/plans`, { method: "POST" }); setPlan(generated);
-      setAnalysis(await api<Analysis>(`/analyses/${analysis.id}`)); setTimeline(await api<TimelineEvent[]>(`/analyses/${analysis.id}/timeline`));
+      applyAnalysis(await api<Analysis>(`/analyses/${analysis.id}`));
+      setTimeline(await api<TimelineEvent[]>(`/analyses/${analysis.id}/timeline`));
       toast.success("Recovery plan generated", { id: toastId }); moveTo("recovery");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Plan generation failed.";
@@ -323,7 +354,9 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     setBusy("Verifying plan from a clean PostgreSQL baseline"); setError(null);
     try {
       const result = await api<Verification>(`/analyses/${analysis.id}/plans/${plan.id}/verify`, { method: "POST" }); setVerification(result);
-      const updated = await api<Analysis>(`/analyses/${analysis.id}`); setAnalysis(updated); setPlan(updated.plans.find((item) => item.id === plan.id) ?? plan);
+      const updated = await api<Analysis>(`/analyses/${analysis.id}`);
+      applyAnalysis(updated);
+      setPlan(updated.plans.find((item) => item.id === plan.id) ?? plan);
       setTimeline(await api<TimelineEvent[]>(`/analyses/${analysis.id}/timeline`));
       toast.success("Verification complete", { id: toastId, description: result.verdict.replaceAll("_", " ") }); moveTo("evidence");
     } catch (caught) {
@@ -338,6 +371,49 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     link.href = `/api/rollbackready/analyses/${analysis.id}/report?download=1`;
     link.download = `rollbackready-${analysis.id}.json`; document.body.append(link); link.click(); link.remove();
     toast.success("Sanitized evidence report downloaded");
+  }
+
+  async function generateInsight(kind: AiInsightKind) {
+    if (!analysis) return;
+    const toastId = toast.loading("Generating advisory insight...");
+    setBusy(`Generating ${kind.replace("_", " ")}`);
+    setError(null);
+    try {
+      const generated = await api<AiInsight>(`/analyses/${analysis.id}/insights?kind=${encodeURIComponent(kind)}`, { method: "POST" });
+      setInsights((current) => [generated, ...current.filter((item) => item.id !== generated.id)]);
+      const updated = await api<Analysis>(`/analyses/${analysis.id}`);
+      applyAnalysis(updated);
+      toast.success("Insight generated", { id: toastId });
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Insight generation failed.";
+      setError(message);
+      toast.error("Insight generation failed", { id: toastId, description: message });
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function deleteAnalysis() {
+    if (!analysis) return;
+    if (!window.confirm("Delete this analysis and clear the workspace?")) return;
+    const toastId = toast.loading("Deleting analysis...");
+    setBusy("Deleting");
+    setError(null);
+    try {
+      const response = await fetch(`/api/rollbackready/analyses/${analysis.id}`, { method: "DELETE" });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(body?.error?.message ?? `Failed to delete with ${response.status}.`);
+      }
+      resetWorkspace();
+      toast.success("Analysis deleted", { id: toastId });
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Failed to delete analysis.";
+      setError(message);
+      toast.error("Delete failed", { id: toastId, description: message });
+    } finally {
+      setBusy(null);
+    }
   }
 
   const candidateSql = analysis?.findings.find((finding) => finding.statement_shape)?.statement_shape ?? null;
@@ -355,6 +431,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   ];
   const retryEvidence = analysis?.evidence.find((item) => item.key === "idempotent_retry");
   const recoveryEvidence = verification?.dimensions.find((item) => item.key === "failure_recovery") ?? analysis?.evidence.find((item) => item.key === "failure_recovery");
+  const visibleInsights = insights;
   const pipelineState = {
     migrationCount: analysis?.manifest.migrations.length ?? 0,
     candidate: analysis?.candidate_migration ?? null,
@@ -531,7 +608,49 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <div className="evidence-grid">
                 {reportDimensions.map((item) => <article key={item.key}><StatusIcon status={item.status} /><div><span>{item.label}</span><strong>{item.status.replaceAll("_", " ")}</strong><p>{item.summary}</p><small>{item.source.replaceAll("_", " ")}</small></div></article>)}
               </div>
-              <div className="report-actions"><p><LockKeyhole size={14} /> Raw uploads expire after the analysis lifecycle.</p>{analysis ? <Button variant="secondary" onClick={downloadReport}><Download size={15} /> Download JSON report</Button> : <Button variant="secondary" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}>Create sample evidence <Play size={15} /></Button>}</div>
+              <div className="report-actions">
+                <p><LockKeyhole size={14} /> Raw uploads expire after the analysis lifecycle.</p>
+                {analysis ? (
+                  <>
+                    <Button variant="secondary" onClick={downloadReport}><Download size={15} /> Download JSON report</Button>
+                    <Button size="sm" variant="danger" onClick={deleteAnalysis} disabled={operationsDisabled}><X size={14} /> Delete analysis</Button>
+                  </>
+                ) : (
+                  <Button variant="secondary" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}>Create sample evidence <Play size={15} /></Button>
+                )}
+              </div>
+              <div className="report-section" style={{ marginTop: 12 }}>
+                <h4>AI insights ({visibleInsights.length})</h4>
+                <p style={{ marginTop: 0, color: "#b8c2d3" }}>Advisory analysis summaries pulled from sanitized findings.</p>
+                {canUseProduct ? (
+                  <div className="insight-buttons" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginBottom: 10 }}>
+                    {insightKinds.map((item) => (
+                      <Button
+                        key={item.kind}
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => void generateInsight(item.kind)}
+                        disabled={!analysis || operationsDisabled}
+                      >
+                        Generate {item.label}
+                      </Button>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, color: "#b8c2d3" }}>Sign in to generate insights.</p>
+                )}
+                {visibleInsights.length === 0 ? (
+                  <article className="timeline-empty"><ShieldCheck size={15} /><div><strong>No insights yet</strong><small>Run an analysis to generate AI advisory summaries.</small></div></article>
+                ) : (
+                  visibleInsights.map((insight) => (
+                    <article key={insight.id} className="simulation-panel" style={{ marginTop: 8 }}>
+                      <strong>{insight.kind.replaceAll("_", " ")}</strong>
+                      <p>{insight.content}</p>
+                      <small>By {insight.provider} / {insight.model}</small>
+                    </article>
+                  ))
+                )}
+              </div>
             </div>
           </section>
 

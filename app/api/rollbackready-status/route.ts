@@ -9,12 +9,21 @@ export async function GET() {
     );
   }
   try {
-    const response = await fetch(`${backend}/health/ready`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(5_000),
-    });
-    if (!response.ok) throw new Error(`Backend readiness returned ${response.status}.`);
-    return Response.json({ status: "ready" });
+    const [readyResponse, healthResponse, databaseResponse] = await Promise.all([
+      fetch(`${backend}/health/ready`, { cache: "no-store", signal: AbortSignal.timeout(5_000) }),
+      fetch(`${backend}/health`, { cache: "no-store", signal: AbortSignal.timeout(5_000) }),
+      fetch(`${backend}/health/database`, { cache: "no-store", signal: AbortSignal.timeout(5_000) }),
+    ]);
+    const checks = {
+      ready: readyResponse.ok,
+      health: healthResponse.ok,
+      database: databaseResponse.ok,
+    };
+    if (!readyResponse.ok) throw new Error(`Backend readiness returned ${readyResponse.status}.`);
+    if (!checks.health || !checks.database) {
+      throw new Error("Auxiliary backend checks failed.");
+    }
+    return Response.json({ status: "ready", checks });
   } catch {
     return Response.json(
       { status: "unavailable", message: "The analysis backend is not reachable." },
