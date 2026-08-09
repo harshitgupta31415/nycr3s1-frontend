@@ -62,7 +62,8 @@ type Verification = { id: string; status: EvidenceStatus; verdict: string; dimen
 type Analysis = {
   id: string; status: string; evidence_level: string; verdict: string; provider: string | null; candidate_migration: string;
   findings: Finding[]; evidence: Evidence[]; limitations: string[]; plans: Plan[];
-  manifest: { archive_sha256: string; archive_byte_count: number; has_seed: boolean; legacy_query_count: number; migrations: Array<{ folder: string; sha256: string; statement_count: number; candidate: boolean }> };
+  auth_mode?: string;
+  manifest: { archive_sha256: string; archive_byte_count: number; has_seed: boolean; fixture_source?: string; legacy_query_source?: string; legacy_query_count: number; migrations: Array<{ folder: string; sha256: string; statement_count: number; candidate: boolean }> };
 };
 
 type SavedWorkspace = {
@@ -266,6 +267,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
 
   async function stageAndRun(form: FormData, mode: "sample" | "upload") {
     if (!canUseProduct) { setError("Sign in to run an analysis."); return; }
+    if (backendStatus !== "ready") { setError("The analysis backend is not ready. Try again after connectivity is restored."); return; }
     const toastId = toast.loading("Staging the migration evidence bundle...");
     setBusy("Staging project bundle"); setError(null); setPlan(null); setVerification(null);
     try {
@@ -351,6 +353,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     planState: plan?.state ?? null,
   };
   const generatedPhases = plan?.phases ?? [];
+  const operationsDisabled = Boolean(busy) || backendStatus !== "ready";
 
   return (
     <Tooltip.Provider delayDuration={180}>
@@ -385,7 +388,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <h1>See the failure.<br /><span>Verify the recovery.</span></h1>
               <p className="hero-lede">dbsentinal replays Prisma migration history, injects failures at statement boundaries, checks old application queries, and proves whether a recovery plan actually works.</p>
               <div className="hero-actions">
-                <Button size="lg" onClick={runDemo} disabled={Boolean(busy) || !canUseProduct}><Play size={16} fill="currentColor" /> Run sample unsafe demo <ArrowRight size={16} /></Button>
+                <Button size="lg" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}><Play size={16} fill="currentColor" /> Run sample unsafe demo <ArrowRight size={16} /></Button>
                 <Button size="lg" variant="secondary" onClick={() => moveTo("product")}>Explore the pipeline <ArrowDown size={16} /></Button>
               </div>
               <div className="hero-proof" aria-label="Product safety boundaries">
@@ -420,13 +423,13 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <form className="upload-card" onSubmit={uploadProject}>
                 <div className="card-label"><FileArchive size={14} /> Analyze your project</div>
                 <label className="file-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); selectProjectFile(event.dataTransfer.files?.[0] ?? null); }}>
-                  <input type="file" accept=".zip,application/zip" disabled={!canUseProduct} onChange={(event) => selectProjectFile(event.target.files?.[0] ?? null)} />
+                   <input type="file" accept=".zip,application/zip" disabled={!canUseProduct || backendStatus !== "ready"} onChange={(event) => selectProjectFile(event.target.files?.[0] ?? null)} />
                   <UploadCloud size={25} />
                   <strong>{file?.name ?? "Drop a project bundle"}</strong>
                   <small>ZIP · complete migrations · synthetic fixtures · 10 MiB max</small>
                 </label>
-                <label className="field-label">Candidate migration folder<input value={candidate} disabled={!canUseProduct} onChange={(event) => setCandidate(event.target.value)} placeholder="20260809100000_add_phone" /></label>
-                <Button type="submit" variant="secondary" disabled={Boolean(busy) || !canUseProduct}>Validate and analyze <ArrowRight size={16} /></Button>
+                 <label className="field-label">Candidate migration folder<input value={candidate} disabled={!canUseProduct || backendStatus !== "ready"} onChange={(event) => setCandidate(event.target.value)} placeholder="20260809100000_add_phone" /></label>
+                 <Button type="submit" variant="secondary" disabled={operationsDisabled || !canUseProduct}>Validate and analyze <ArrowRight size={16} /></Button>
               </form>
             </div>
           </section>
@@ -476,7 +479,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <div className="timeline-panel">
                 <div className="panel-head"><div><Activity size={16} /><span>Execution timeline</span></div><small>{timeline.length ? "LIVE RESULT" : "NOT RUN"}</small></div>
                 <ol className="timeline-list">
-                  {timeline.length ? timeline.slice(0, 8).map((event, index) => <li key={`${event.sequence}-${event.event_type}`}><span className={`timeline-node ${tone(event.status)}`}><i /></span><div><small>{String(event.sequence).padStart(2, "0")} · {event.event_type.replaceAll("_", " ")}</small><strong>{event.message}</strong></div><b className={tone(event.status)}>{event.status.replaceAll("_", " ")}</b>{!reducedMotion && <motion.i className="timeline-progress" initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.08, duration: 0.45 }} />}</li>) : <li className="timeline-empty"><Activity size={20} /><div><strong>No simulation events yet</strong><small>Run the demo or analyze a ZIP to populate this timeline from the backend.</small></div><Button size="sm" onClick={runDemo} disabled={Boolean(busy) || !canUseProduct}>Run demo</Button></li>}
+                  {timeline.length ? timeline.slice(0, 8).map((event, index) => <li key={`${event.sequence}-${event.event_type}`}><span className={`timeline-node ${tone(event.status)}`}><i /></span><div><small>{String(event.sequence).padStart(2, "0")} · {event.event_type.replaceAll("_", " ")}</small><strong>{event.message}</strong></div><b className={tone(event.status)}>{event.status.replaceAll("_", " ")}</b>{!reducedMotion && <motion.i className="timeline-progress" initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.08, duration: 0.45 }} />}</li>) : <li className="timeline-empty"><Activity size={20} /><div><strong>No simulation events yet</strong><small>Run the sample or analyze a ZIP to populate this timeline from the backend.</small></div><Button size="sm" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}>Run sample</Button></li>}
                 </ol>
               </div>
               <div className="simulation-stats">
@@ -495,19 +498,19 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
                 <div className="ai-orb"><Bot size={28} /><i /></div>
                 <span>LangGraph recovery planner</span><strong>{plan?.strategy ?? "No plan generated"}</strong><p>{plan?.summary ?? (analysis ? "Generate a plan from this analysis's normalized findings." : "Run an analysis first. The planner will use its normalized findings, not a hardcoded recovery script.")}</p>
                 <div className="ai-boundaries"><span><LockKeyhole size={14} /> No fixture values</span><span><Braces size={14} /> Pydantic validated</span><span><ServerCog size={14} /> Fresh sandbox replay</span></div>
-                {canUseProduct ? <Button onClick={generatePlan} disabled={!analysis || !analysis.findings.length || Boolean(busy)}>{plan ? "Regenerate plan" : "Generate safer plan"}<Sparkles size={16} /></Button> : <SignInButton mode="modal"><Button>Sign in to generate</Button></SignInButton>}
+                {canUseProduct ? <Button onClick={generatePlan} disabled={!analysis || !analysis.findings.length || operationsDisabled}>{plan ? "Regenerate plan" : "Generate safer plan"}<Sparkles size={16} /></Button> : <SignInButton mode="modal"><Button>Sign in to generate</Button></SignInButton>}
               </div>
               <SqlPreview candidateSql={candidateSql} planSql={planSql} verified={planVerified} />
             </div>
-            {plan && <div className="generated-plan" data-gsap-reveal><div><span>Generated phases</span><strong>{plan.state.replaceAll("_", " ")}</strong></div><div>{plan.phases.map((phase, index) => <article key={phase.name}><span>{String(index + 1).padStart(2, "0")}</span><h4>{phase.name}</h4><p>{phase.objective}</p>{phase.sql.slice(0, 1).map((sql) => <code key={sql}>{sql}</code>)}<details><summary>Review complete phase</summary><strong>SQL</strong>{phase.sql.map((sql) => <code key={sql}>{sql}</code>)}<strong>Application changes</strong><ul>{phase.application_changes.map((change) => <li key={change}>{change}</li>)}</ul><strong>Verification SQL</strong>{phase.verification_sql.map((sql) => <code key={sql}>{sql}</code>)}<strong>Rollback guidance</strong><p>{phase.rollback_guidance}</p></details></article>)}</div><details><summary>Review plan assumptions and limitations</summary><strong>Assumptions</strong><ul>{plan.assumptions.map((assumption) => <li key={assumption}>{assumption}</li>)}</ul><strong>Limitations</strong><ul>{plan.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details><Button onClick={verifyPlan} disabled={Boolean(busy) || plan.state === "VERIFIED_FOR_REVIEW"}>Verify from a clean baseline <ShieldCheck size={16} /></Button></div>}
-            <SchemaChat key={analysis?.id ?? "no-analysis"} analysisId={analysis?.id ?? null} />
+            {plan && <div className="generated-plan" data-gsap-reveal><div><span>Generated phases</span><strong>{plan.state.replaceAll("_", " ")}</strong></div><div>{plan.phases.map((phase, index) => <article key={phase.name}><span>{String(index + 1).padStart(2, "0")}</span><h4>{phase.name}</h4><p>{phase.objective}</p>{phase.sql.slice(0, 1).map((sql) => <code key={sql}>{sql}</code>)}<details><summary>Review complete phase</summary><strong>SQL</strong>{phase.sql.map((sql) => <code key={sql}>{sql}</code>)}<strong>Application changes</strong><ul>{phase.application_changes.map((change) => <li key={change}>{change}</li>)}</ul><strong>Verification SQL</strong>{phase.verification_sql.map((sql) => <code key={sql}>{sql}</code>)}<strong>Rollback guidance</strong><p>{phase.rollback_guidance}</p></details></article>)}</div><details><summary>Review plan assumptions and limitations</summary><strong>Assumptions</strong><ul>{plan.assumptions.map((assumption) => <li key={assumption}>{assumption}</li>)}</ul><strong>Limitations</strong><ul>{plan.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details><Button onClick={verifyPlan} disabled={operationsDisabled || plan.state === "VERIFIED_FOR_REVIEW"}>Verify from a clean baseline <ShieldCheck size={16} /></Button></div>}
+            <SchemaChat key={analysis?.id ?? "no-analysis"} analysisId={analysis?.id ?? null} disabled={backendStatus !== "ready"} />
           </section>
 
           <section className="section deployment-section" id="deployment">
             <SectionHeading kicker="06 / Safer execution" title="Expand → Deploy → Backfill → Verify → Contract" body="The recovery plan becomes an ordered release protocol with explicit application changes, verification gates, and rollback guidance." />
             {generatedPhases.length ? <div className="phase-track" data-gsap-reveal>
               {generatedPhases.map((phase, index) => { const Icon = deploymentPhases[index % deploymentPhases.length].icon; return <motion.article key={`${index}-${phase.name}`} whileHover={reducedMotion ? undefined : { y: -4 }}><div><Icon size={18} /><span>{String(index + 1).padStart(2, "0")}</span></div><h3>{phase.name}</h3><p>{phase.objective}</p>{index < generatedPhases.length - 1 && <i className="phase-connector"><ChevronRight size={15} /></i>}</motion.article>; })}
-            </div> : <div className="dynamic-empty" data-gsap-reveal><Layers3 size={24} /><div><strong>No generated deployment phases</strong><p>Run an analysis and generate a recovery plan. Its actual phases will appear here.</p></div><Button variant="secondary" onClick={() => analysis?.findings.length ? generatePlan() : moveTo("product")} disabled={Boolean(busy)}>{analysis?.findings.length ? "Generate plan" : "Choose an analysis"}<ArrowRight size={15} /></Button></div>}
+            </div> : <div className="dynamic-empty" data-gsap-reveal><Layers3 size={24} /><div><strong>No generated deployment phases</strong><p>Run an analysis and generate a recovery plan. Its actual phases will appear here.</p></div><Button variant="secondary" onClick={() => analysis?.findings.length ? generatePlan() : moveTo("product")} disabled={operationsDisabled}>{analysis?.findings.length ? "Generate plan" : "Choose an analysis"}<ArrowRight size={15} /></Button></div>}
           </section>
 
           <section className="section evidence-section" id="evidence">
@@ -517,7 +520,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <div className="evidence-grid">
                 {reportDimensions.map((item) => <article key={item.key}><StatusIcon status={item.status} /><div><span>{item.label}</span><strong>{item.status.replaceAll("_", " ")}</strong><p>{item.summary}</p><small>{item.source.replaceAll("_", " ")}</small></div></article>)}
               </div>
-              <div className="report-actions"><p><LockKeyhole size={14} /> Raw uploads expire after the analysis lifecycle.</p>{analysis ? <Button variant="secondary" onClick={downloadReport}><Download size={15} /> Download JSON report</Button> : <Button variant="secondary" onClick={runDemo} disabled={!canUseProduct}>Create demo evidence <Play size={15} /></Button>}</div>
+              <div className="report-actions"><p><LockKeyhole size={14} /> Raw uploads expire after the analysis lifecycle.</p>{analysis ? <Button variant="secondary" onClick={downloadReport}><Download size={15} /> Download JSON report</Button> : <Button variant="secondary" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}>Create sample evidence <Play size={15} /></Button>}</div>
             </div>
           </section>
 
@@ -539,7 +542,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
           <section className="cta-section" id="cta" data-gsap-reveal>
             <div className="cta-grid" aria-hidden="true" />
             <div><span>BREAK IT BEFORE PRODUCTION DOES.</span><h2>Turn migration confidence<br />into recovery evidence.</h2><p>Run the unsafe phone-column demo in under five minutes.</p></div>
-            <div className="cta-actions"><Button size="lg" onClick={runDemo} disabled={Boolean(busy) || !canUseProduct}><Play size={16} fill="currentColor" /> Run live demo</Button><Link href="/architecture" className="text-link">Review architecture <ArrowRight size={15} /></Link></div>
+            <div className="cta-actions"><Button size="lg" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}><Play size={16} fill="currentColor" /> Run sample demo</Button><Link href="/architecture" className="text-link">Review architecture <ArrowRight size={15} /></Link></div>
           </section>
         </div>
 

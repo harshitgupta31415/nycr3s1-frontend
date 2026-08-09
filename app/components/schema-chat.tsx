@@ -20,7 +20,7 @@ const starterQuestions = [
   "What must pass before enforcing the constraint?",
 ];
 
-export default function SchemaChat({ analysisId }: { analysisId: string | null }) {
+export default function SchemaChat({ analysisId, disabled = false }: { analysisId: string | null; disabled?: boolean }) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [suggestions, setSuggestions] = useState(starterQuestions);
   const [input, setInput] = useState("");
@@ -30,7 +30,7 @@ export default function SchemaChat({ analysisId }: { analysisId: string | null }
 
   async function ask(question: string) {
     const message = question.trim();
-    if (!analysisId || !message || busy) return;
+    if (!analysisId || !message || busy || disabled) return;
     const userMessage: ChatMessage = { role: "user", content: message };
     const history = [...messages, userMessage].slice(-8);
     setMessages(history);
@@ -86,10 +86,10 @@ export default function SchemaChat({ analysisId }: { analysisId: string | null }
         {busy && <div className="schema-chat-thinking"><i /><span>Grounding answer in sanitized evidence…</span></div>}
       </div>
       {error && <p className="schema-chat-error" role="alert">{error}</p>}
-      <div className="schema-chat-prompts">{suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)} disabled={!analysisId || busy}>{question}</button>)}</div>
+      <div className="schema-chat-prompts">{suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)} disabled={!analysisId || busy || disabled}>{question}</button>)}</div>
       <form onSubmit={submit}>
         <label htmlFor="schema-chat-input">Question about the migration or recovery plan</label>
-        <div><input id="schema-chat-input" value={input} onChange={(event) => setInput(event.target.value)} maxLength={2000} disabled={!analysisId || busy} placeholder={analysisId ? "Ask why, sequencing, compatibility, or verification…" : "Analysis required"} /><Button type="submit" size="sm" disabled={!analysisId || !input.trim() || busy}>Ask <Send size={14} /></Button></div>
+        <div><input id="schema-chat-input" value={input} onChange={(event) => setInput(event.target.value)} maxLength={2000} disabled={!analysisId || busy || disabled} placeholder={analysisId ? "Ask why, sequencing, compatibility, or verification…" : "Analysis required"} /><Button type="submit" size="sm" disabled={!analysisId || !input.trim() || busy || disabled}>Ask <Send size={14} /></Button></div>
       </form>
       <footer><span>{provider ?? "LangGraph constrained advisor"}</span><span>Advisory only · human review required</span></footer>
     </section>
