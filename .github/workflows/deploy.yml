@@ -110,5 +110,10 @@ jobs:
             --retry 12 --retry-all-errors --retry-delay 5 "$URL")"
           grep --fixed-strings --quiet \
             "Know how it fails." <<< "$BODY"
+          PUBLIC_BODY="$(curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 \
+            "https://dbsentinal.get200.qd.je")"
+          grep --fixed-strings --quiet \
+            "Know how it fails." <<< "$PUBLIC_BODY"
           echo "GCP frontend URL - $URL" >> "$GITHUB_STEP_SUMMARY"
           echo "Public frontend URL - https://dbsentinal.get200.qd.je" >> "$GITHUB_STEP_SUMMARY"

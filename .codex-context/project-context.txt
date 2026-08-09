@@ -115,3 +115,25 @@ Verification:
 The committed branch exactly matched origin/codex/rollbackready-mvp and the worktree was clean before continued work. GitHub Actions push run 31307140768 and pull-request run 31307230971 both completed successfully.
 Deployment:
 The workflow correctly skipped its deploy job for the draft pull request. No merge or production deployment was performed.
+
+[2026-08-09 15:51:42 IST]
+Task:
+Finish the RollbackReady hackathon release candidate quickly, configure Clerk DNS, reconcile the final audit against current source, synchronize project context, and keep deployment separately gated.
+Changes:
+Added all five Clerk production CNAMEs in the authoritative Google Cloud DNS zone india-nychacks with TTL 300 and exact targets for accounts, frontend API, both DKIM selectors, and primary mail. Confirmed that the current frontend already contains optional Clerk sessions, server-side bearer-token forwarding, a reliable report attachment download, responsive 390px constraints, and the corrected product smoke string. Retained the pending deployment check that verifies both the Cloud Run revision and https://dbsentinal.get200.qd.je contain the current product marker. Updated the shared PRD implementation status in project docs and backend/docs. No image or render artifact was created.
+Verification:
+Frontend lint, typecheck, and the optimized production build passed on the final state. Existing pull-request CI was green before this pass. Live Clerk DNS was verified against the authoritative nameserver and 1.1.1.1. The current production service was inspected read-only and still runs the earlier foundation revision; no Clerk key names exist in repository variables/secrets or Google Secret Manager, so anonymous mode remains the internally consistent MVP configuration.
+Deployment:
+No application merge, frontend deployment, backend deployment, production database migration, or production data access was performed. Only the explicitly authorized DNS records changed.
+Commit:
+This entry is included in the release context synchronization commit. The context log remains intentionally unignored and no .gitignore file was changed.
+
+[2026-08-09 15:54:56 IST]
+Task:
+Repair stale deployment links and publish the completed RollbackReady frontend to origin/main after the user explicitly authorized the direct push.
+Changes:
+Extended the deployment smoke check to require the current RollbackReady marker from both the new Cloud Run revision and the public dbsentinal.get200.qd.je domain.
+Verification:
+Fetched origin/main with no remote-only commits; the release branch was two commits ahead. ESLint, TypeScript type checking, and the Next.js production build all passed, including the same-origin RollbackReady API proxy route.
+Deployment:
+The direct origin/main push is explicitly authorized by the user. This release commit is intended to trigger the existing Cloud Run deployment workflow; live rollout success must be confirmed from GitHub Actions and both frontend URLs.
