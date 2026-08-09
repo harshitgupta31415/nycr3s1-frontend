@@ -52,7 +52,7 @@ export default function FeaturePage({ eyebrow, title, accent, summary, metric, m
           <div className="feature-emblem-fallback" aria-hidden="true"><ShieldCheck size={72} /><Database size={38} /></div>
           <Image src="/rollbackready-emblem.png" width={520} height={520} priority alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
           <span className="sr-only">dbsentinal database protection emblem</span>
-          <div><span>{metricLabel}</span><strong>{metric}</strong><small>LIVE SYSTEM TARGET</small></div>
+          <div><span>{metricLabel}</span><strong>{metric}</strong><small>PRODUCT TARGET</small></div>
         </motion.div>
       </section>
 
@@ -69,7 +69,7 @@ export default function FeaturePage({ eyebrow, title, accent, summary, metric, m
       </section>
 
       <section className="feature-system-section">
-        <div className="feature-section-title"><span>02 / SYSTEM VIEW</span><h2>{viewTitle(variant)}</h2></div>
+        <div className="feature-section-title"><span>02 / ILLUSTRATIVE SYSTEM VIEW</span><h2>{viewTitle(variant)}</h2></div>
         <div className={`feature-system feature-system-${variant}`}>
           <div className="feature-system-grid" aria-hidden="true" />
           <div className="feature-system-core">

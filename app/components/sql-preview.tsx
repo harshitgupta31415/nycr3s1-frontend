@@ -1,11 +1,15 @@
 "use client";
 
-import Editor, { type BeforeMount } from "@monaco-editor/react";
+import Editor, { loader, type BeforeMount } from "@monaco-editor/react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { ShieldCheck, TriangleAlert } from "lucide-react";
 
 const noCandidateSql = "-- Run an analysis to inspect the candidate statement shape.";
 const noPlanSql = "-- Generate a recovery plan to inspect its proposed SQL.";
+
+// Keep editor code on the application origin so the production CSP remains
+// strict and SQL previews do not depend on a third-party CDN at runtime.
+loader.config({ paths: { vs: "/monaco/vs" } });
 
 const configureTheme: BeforeMount = (monaco) => {
   monaco.editor.defineTheme("rollbackready", {

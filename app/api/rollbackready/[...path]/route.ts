@@ -43,17 +43,41 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const target = `${backend}/api/v1/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
   const headers = new Headers({ accept: request.headers.get("accept") ?? "application/json" });
   const contentType = request.headers.get("content-type");
-  if (contentType) headers.set("content-type", contentType);
+  const idempotencyKey = request.headers.get("idempotency-key");
   if (token) headers.set("authorization", `Bearer ${token}`);
-  const body = ["GET", "HEAD"].includes(request.method) ? undefined : request.body;
-  const requestInit: RequestInit & { duplex?: "half" } = {
+  if (idempotencyKey) headers.set("idempotency-key", idempotencyKey);
+
+  let body: BodyInit | undefined;
+  if (!["GET", "HEAD"].includes(request.method)) {
+    if (contentType?.startsWith("multipart/form-data")) {
+      const incoming = await request.formData();
+      const outgoing = new FormData();
+      for (const [key, value] of incoming.entries()) {
+        if (typeof value === "string") {
+          outgoing.append(key, value);
+          continue;
+        }
+        const bytes = await value.arrayBuffer();
+        outgoing.append(
+          key,
+          new Blob([bytes], { type: value.type || "application/octet-stream" }),
+          value.name,
+        );
+      }
+      body = outgoing;
+    } else {
+      body = await request.arrayBuffer();
+      if (contentType) headers.set("content-type", contentType);
+    }
+  }
+
+  const requestInit: RequestInit = {
     method: request.method,
     headers,
     body,
     cache: "no-store",
     signal: AbortSignal.timeout(120_000),
   };
-  if (body) requestInit.duplex = "half";
   const response = await fetch(target, requestInit);
   const responseHeaders = new Headers({
     "content-type": response.headers.get("content-type") ?? "application/json",

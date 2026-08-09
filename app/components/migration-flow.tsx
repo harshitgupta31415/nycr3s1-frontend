@@ -77,7 +77,7 @@ export default function MigrationFlow({ state, onNavigate }: { state: PipelineSt
         const active = edge.source === selected || edge.target === selected;
         return {
           ...edge,
-          type: "bezier",
+          type: "default",
           animated: false,
           className: active ? "flow-edge flow-edge-active" : "flow-edge",
           markerEnd: {

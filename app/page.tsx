@@ -74,6 +74,7 @@ type AiInsight = {
 type Verification = { id: string; status: EvidenceStatus; verdict: string; dimensions: Evidence[] };
 type Analysis = {
   id: string; status: string; evidence_level: string; verdict: string; provider: string | null; candidate_migration: string;
+  created_at: string; updated_at: string; expires_at: string;
   findings: Finding[]; evidence: Evidence[]; limitations: string[]; plans: Plan[]; insights: AiInsight[];
   auth_mode?: string;
   manifest: { archive_sha256: string; archive_byte_count: number; has_seed: boolean; fixture_source?: string; legacy_query_source?: string; legacy_query_count: number; migrations: Array<{ folder: string; sha256: string; statement_count: number; candidate: boolean }> };
@@ -88,7 +89,8 @@ type SavedWorkspace = {
   mode: "none" | "sample" | "upload";
 };
 
-const workspaceStorageKey = "dbsentinal:active-workspace:v1";
+const workspaceStoragePrefix = "dbsentinal:active-workspace:v2";
+const maxArchiveBytes = 10 * 1024 * 1024;
 
 const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 const clerkAuthRequired = process.env.NEXT_PUBLIC_CLERK_AUTH_REQUIRED === "true";
@@ -108,9 +110,9 @@ const riskFamilies = [
   { id: "recovery", categories: ["LOCK_RISK_HEURISTIC"], icon: RotateCcw, label: "Recovery", value: "Retry + idempotency", tone: "cyan", detail: "Interrupted execution, remaining state, retry behavior, and repair class." },
 ];
 const insightKinds: { kind: AiInsightKind; label: string }[] = [
-  { kind: "finding_explanations", label: "Finding explanations" },
-  { kind: "migration_summary", label: "Migration summary" },
-  { kind: "plan_rejection", label: "Plan rejection context" },
+  { kind: "finding_explanations", label: "Explain the findings" },
+  { kind: "migration_summary", label: "Summarize the migration" },
+  { kind: "plan_rejection", label: "Explain a rejected plan" },
 ];
 
 const deploymentPhases = [
@@ -122,10 +124,22 @@ const deploymentPhases = [
 ];
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`/api/rollbackready${path}`, init);
+  const headers = new Headers(init?.headers);
+  if ((init?.method ?? "GET").toUpperCase() === "POST" && !headers.has("Idempotency-Key")) {
+    headers.set("Idempotency-Key", crypto.randomUUID());
+  }
+  const response = await fetch(`/api/rollbackready${path}`, { ...init, headers });
   if (!response.ok) {
-    const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
-    throw new Error(body?.error?.message ?? `Request failed with ${response.status}.`);
+    const body = (await response.json().catch(() => null)) as {
+      error?: { message?: string };
+      detail?: string | Array<{ loc?: Array<string | number>; msg?: string }>;
+    } | null;
+    const validationMessage = Array.isArray(body?.detail)
+      ? body.detail
+          .map((item) => `${item.loc?.join(".") ?? "request"}: ${item.msg ?? "Invalid value"}`)
+          .join("; ")
+      : body?.detail;
+    throw new Error(body?.error?.message ?? validationMessage ?? `Request failed with ${response.status}.`);
   }
   if (response.status === 204) return undefined as T;
   return (await response.json()) as T;
@@ -136,12 +150,13 @@ export default function Home() {
 }
 
 function ClerkHome() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, userId } = useAuth();
   const signedIn = Boolean(isSignedIn);
-  return <RollbackReadyExperience canUseProduct={signedIn || !clerkAuthRequired} isSignedIn={signedIn} clerkEnabled />;
+  const workspaceOwner = userId ?? "signed-out";
+  return <RollbackReadyExperience key={workspaceOwner} canUseProduct={signedIn || !clerkAuthRequired} isSignedIn={signedIn} clerkEnabled workspaceOwner={workspaceOwner} />;
 }
 
-function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasClerk }: { canUseProduct: boolean; isSignedIn: boolean; clerkEnabled: boolean }) {
+function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasClerk, workspaceOwner = "anonymous" }: { canUseProduct: boolean; isSignedIn: boolean; clerkEnabled: boolean; workspaceOwner?: string }) {
   const rootRef = useRef<HTMLElement>(null);
   const reducedMotion = useReducedMotion();
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
@@ -149,6 +164,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   const [plan, setPlan] = useState<Plan | null>(null);
   const [verification, setVerification] = useState<Verification | null>(null);
   const [insights, setInsights] = useState<AiInsight[]>([]);
+  const [insightBusy, setInsightBusy] = useState<AiInsightKind | null>(null);
   const [candidate, setCandidate] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -158,6 +174,8 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   const [workspaceMode, setWorkspaceMode] = useState<"none" | "sample" | "upload">("none");
   const [backendStatus, setBackendStatus] = useState<"checking" | "ready" | "unavailable">("checking");
   const [backendMessage, setBackendMessage] = useState<string | null>(null);
+  const fileSelectionSequence = useRef(0);
+  const workspaceStorageKey = `${workspaceStoragePrefix}:${workspaceOwner}`;
   const criticalCount = useMemo(() => analysis?.findings.filter((item) => ["CRITICAL", "HIGH"].includes(item.severity)).length ?? 0, [analysis]);
   const shownFindings = useMemo(() => {
     if (!analysis || !activeRiskFamily) return analysis?.findings ?? [];
@@ -171,6 +189,10 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
       const saved = window.sessionStorage.getItem(workspaceStorageKey);
       if (!saved) return;
       const workspace = JSON.parse(saved) as SavedWorkspace;
+      if (workspace.analysis?.expires_at && Date.parse(workspace.analysis.expires_at) <= Date.now()) {
+        window.sessionStorage.removeItem(workspaceStorageKey);
+        return;
+      }
       restoreFrame = window.requestAnimationFrame(() => {
         setAnalysis(workspace.analysis);
         setTimeline(workspace.timeline ?? []);
@@ -183,13 +205,13 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
       window.sessionStorage.removeItem(workspaceStorageKey);
     }
     return () => window.cancelAnimationFrame(restoreFrame);
-  }, []);
+  }, [workspaceStorageKey]);
 
   useEffect(() => {
     if (!analysis) return;
     const workspace: SavedWorkspace = { analysis, timeline, plan, verification, insights, mode: workspaceMode };
     window.sessionStorage.setItem(workspaceStorageKey, JSON.stringify(workspace));
-  }, [analysis, timeline, plan, verification, insights, workspaceMode]);
+  }, [analysis, timeline, plan, verification, insights, workspaceMode, workspaceStorageKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -268,11 +290,35 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     setInsights(analysisData?.insights ?? []);
   }
 
-  function selectProjectFile(selected: File | null) {
+  async function selectProjectFile(selected: File | null) {
+    const sequence = ++fileSelectionSequence.current;
     if (!selected) return;
     if (!selected.name.toLowerCase().endsWith(".zip")) {
       setFile(null);
       setError("Project bundles must be uploaded as a ZIP archive.");
+      return;
+    }
+    if (selected.size === 0) {
+      setFile(null);
+      setError("The selected ZIP archive is empty.");
+      return;
+    }
+    if (selected.size > maxArchiveBytes) {
+      setFile(null);
+      setError("The selected ZIP is larger than the 10 MiB upload limit.");
+      return;
+    }
+    const signature = new Uint8Array(await selected.slice(0, 4).arrayBuffer());
+    if (sequence !== fileSelectionSequence.current) return;
+    const isZip = signature.length === 4
+      && signature[0] === 0x50
+      && signature[1] === 0x4b
+      && ((signature[2] === 0x03 && signature[3] === 0x04)
+        || (signature[2] === 0x05 && signature[3] === 0x06)
+        || (signature[2] === 0x07 && signature[3] === 0x08));
+    if (!isZip) {
+      setFile(null);
+      setError("The selected file has a .zip name but is not a valid ZIP archive.");
       return;
     }
     setError(null);
@@ -314,11 +360,20 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
         }
       });
       eventSource.addEventListener("complete", () => eventSource?.close());
+      eventSource.onerror = () => {
+        // Streaming is an enhancement. Close unsupported or interrupted streams;
+        // the authoritative timeline is fetched after the run completes.
+        eventSource?.close();
+        eventSource = null;
+      };
       toast.loading("Breaking the migration at every supported boundary...", { id: toastId });
       const completed = await api<Analysis>(`/analyses/${staged.id}/run`, { method: "POST" });
       applyAnalysis(completed);
       setTimeline(await api<TimelineEvent[]>(`/analyses/${staged.id}/timeline`));
       toast.success("Evidence run complete", { id: toastId, description: completed.verdict.replaceAll("_", " ") });
+      if (completed.findings.length && !completed.insights.some((item) => item.kind === "migration_summary")) {
+        void generateInsight("migration_summary", completed.id, true);
+      }
       moveTo("risks");
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Analysis failed.";
@@ -330,7 +385,12 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   async function uploadProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!file || !candidate.trim()) { setError("Choose a ZIP bundle and enter the candidate migration folder."); return; }
-    const form = new FormData(); form.set("project_bundle", file); form.set("candidate_migration", candidate.trim()); await stageAndRun(form, "upload");
+    const candidateFolder = candidate.trim();
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(candidateFolder)) {
+      setError("Enter only the candidate migration folder name, without slashes or a filesystem path.");
+      return;
+    }
+    const form = new FormData(); form.set("project_bundle", file); form.set("candidate_migration", candidateFolder); await stageAndRun(form, "upload");
   }
   async function generatePlan() {
     if (!canUseProduct) { setError("Sign in to generate a recovery plan."); return; }
@@ -364,32 +424,57 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
       setError(message); toast.error("Plan verification failed", { id: toastId, description: message });
     } finally { setBusy(null); }
   }
-  function downloadReport() {
+  async function downloadReport() {
     if (!canUseProduct) { setError("Sign in to download a report."); return; }
     if (!analysis) return;
-    const link = document.createElement("a");
-    link.href = `/api/rollbackready/analyses/${analysis.id}/report?download=1`;
-    link.download = `rollbackready-${analysis.id}.json`; document.body.append(link); link.click(); link.remove();
-    toast.success("Sanitized evidence report downloaded");
-  }
-
-  async function generateInsight(kind: AiInsightKind) {
-    if (!analysis) return;
-    const toastId = toast.loading("Generating advisory insight...");
-    setBusy(`Generating ${kind.replace("_", " ")}`);
+    const toastId = toast.loading("Preparing the sanitized evidence report...");
+    setBusy("Preparing report download");
     setError(null);
     try {
-      const generated = await api<AiInsight>(`/analyses/${analysis.id}/insights?kind=${encodeURIComponent(kind)}`, { method: "POST" });
-      setInsights((current) => [generated, ...current.filter((item) => item.id !== generated.id)]);
-      const updated = await api<Analysis>(`/analyses/${analysis.id}`);
-      applyAnalysis(updated);
-      toast.success("Insight generated", { id: toastId });
+      const response = await fetch(`/api/rollbackready/analyses/${analysis.id}/report?download=1`, { cache: "no-store" });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { error?: { message?: string } } | null;
+        throw new Error(body?.error?.message ?? `Report download failed with ${response.status}.`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `dbsentinal-${analysis.id}.json`;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
+      toast.success("Sanitized evidence report downloaded", { id: toastId });
     } catch (caught) {
-      const message = caught instanceof Error ? caught.message : "Insight generation failed.";
+      const message = caught instanceof Error ? caught.message : "Report download failed.";
       setError(message);
-      toast.error("Insight generation failed", { id: toastId, description: message });
+      toast.error("Report download failed", { id: toastId, description: message });
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function generateInsight(kind: AiInsightKind, analysisId = analysis?.id, quiet = false) {
+    if (!analysisId || insightBusy) return;
+    const toastId = quiet ? undefined : toast.loading("Generating advisory insight...");
+    setInsightBusy(kind);
+    if (!quiet) setError(null);
+    try {
+      const generated = await api<AiInsight>(`/analyses/${analysisId}/insights?kind=${encodeURIComponent(kind)}`, { method: "POST" });
+      setInsights((current) => [generated, ...current.filter((item) => item.id !== generated.id)]);
+      setAnalysis((current) => current?.id === generated.analysis_id
+        ? { ...current, insights: [generated, ...current.insights.filter((item) => item.id !== generated.id)] }
+        : current);
+      if (!quiet && toastId) toast.success("Insight generated", { id: toastId });
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : "Insight generation failed.";
+      if (!quiet) {
+        setError(message);
+        if (toastId) toast.error("Insight generation failed", { id: toastId, description: message });
+      }
+    } finally {
+      setInsightBusy(null);
     }
   }
 
@@ -419,8 +504,8 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   const candidateSql = analysis?.findings.find((finding) => finding.statement_shape)?.statement_shape ?? null;
   const planSql = plan?.phases.flatMap((phase) => phase.sql).join("\n\n") ?? null;
   const planVerified = plan?.state === "VERIFIED_FOR_REVIEW" && verification?.status === "PASS";
-  const reportVerdict = verification?.verdict ?? analysis?.verdict ?? "AWAITING_ANALYSIS";
-  const reportDimensions: Evidence[] = verification?.dimensions ?? analysis?.evidence ?? [
+  const reportVerdict = analysis?.verdict ?? "AWAITING_ANALYSIS";
+  const reportDimensions: Evidence[] = analysis?.evidence ?? [
     {
       key: "no-evidence",
       label: "Evidence status",
@@ -476,7 +561,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <h1>See the failure.<br /><span>Verify the recovery.</span></h1>
               <p className="hero-lede">dbsentinal replays Prisma migration history, injects failures at statement boundaries, checks old application queries, and proves whether a recovery plan actually works.</p>
               <div className="hero-actions">
-                <Button size="lg" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}><Play size={16} fill="currentColor" /> Run sample unsafe demo <ArrowRight size={16} /></Button>
+                {canUseProduct ? <Button size="lg" onClick={runDemo} disabled={operationsDisabled}><Play size={16} fill="currentColor" /> Run sample unsafe demo <ArrowRight size={16} /></Button> : <SignInButton mode="modal"><Button size="lg"><Play size={16} fill="currentColor" /> Sign in to run demo <ArrowRight size={16} /></Button></SignInButton>}
                 <Button size="lg" variant="secondary" onClick={() => moveTo("product")}>Explore the pipeline <ArrowDown size={16} /></Button>
               </div>
               <div className="hero-proof" aria-label="Product safety boundaries">
@@ -510,8 +595,8 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               </article>
               <form className="upload-card" onSubmit={uploadProject}>
                 <div className="card-label"><FileArchive size={14} /> Analyze your project</div>
-                <label className="file-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); selectProjectFile(event.dataTransfer.files?.[0] ?? null); }}>
-                   <input type="file" accept=".zip,application/zip" disabled={!canUseProduct || backendStatus !== "ready"} onChange={(event) => selectProjectFile(event.target.files?.[0] ?? null)} />
+                <label className="file-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void selectProjectFile(event.dataTransfer.files?.[0] ?? null); }}>
+                  <input type="file" accept=".zip,application/zip" disabled={!canUseProduct || backendStatus !== "ready"} onChange={(event) => void selectProjectFile(event.target.files?.[0] ?? null)} />
                   <UploadCloud size={25} />
                   <strong>{file?.name ?? "Drop a project bundle"}</strong>
                   <small>ZIP · complete migrations · synthetic fixtures · 10 MiB max</small>
@@ -552,7 +637,19 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
                 {!analysis ? (
                   <article><span className="severity warn">NOT TESTED</span><div><small>NO ANALYSIS</small><strong>No candidate evidence yet</strong><p>Run the built-in demo or upload a project bundle. Illustrative findings are not presented as live results.</p></div></article>
                 ) : shownFindings.length ? shownFindings.slice(0, 6).map((finding) => (
-                  <article key={finding.id}><span className={`severity ${tone(finding.severity)}`}>{finding.severity}</span><div><small>{finding.category.replaceAll("_", " ")}</small><strong>{finding.affected_object ?? "Migration contract"}</strong><p>{finding.reason}</p></div><ChevronRight size={18} /></article>
+                  <details className="finding-item" key={finding.id}>
+                    <summary>
+                      <span className={`severity ${tone(finding.severity)}`}>{finding.severity}</span>
+                      <div><small>{finding.category.replaceAll("_", " ")}</small><strong>{finding.affected_object ?? "Migration contract"}</strong><p>{finding.reason}</p></div>
+                      <ChevronRight size={18} aria-hidden="true" />
+                    </summary>
+                    <div className="finding-details">
+                      <div><span>Statement shape</span><code>{finding.statement_shape ?? "No SQL statement shape was retained for this finding."}</code></div>
+                      <div><span>Evidence source</span><strong>{finding.evidence_source.replaceAll("_", " ")}</strong></div>
+                      <div><span>Execution confirmation</span><strong>{finding.confirmed ? "CONFIRMED IN SANDBOX" : "STATIC FINDING"}</strong></div>
+                      <div className="finding-remediation"><span>Recommended direction</span><p>{finding.remediation_hint}</p></div>
+                    </div>
+                  </details>
                 )) : (
                   <article><span className="severity good">NONE</span><div><small>{activeRiskFamily ? "FILTER COMPLETE" : "ANALYSIS COMPLETE"}</small><strong>No deterministic findings{activeRiskFamily ? " in this family" : ""}</strong><p>{activeRiskFamily ? "Select the active card again to show every finding." : "Review the independent evidence dimensions and limitations before drawing a conclusion."}</p></div></article>
                 )}
@@ -567,7 +664,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
               <div className="timeline-panel">
                 <div className="panel-head"><div><Activity size={16} /><span>Execution timeline</span></div><small>{timeline.length ? "LIVE RESULT" : "NOT RUN"}</small></div>
                 <ol className="timeline-list">
-                  {timeline.length ? timeline.slice(0, 8).map((event, index) => <li key={`${event.sequence}-${event.event_type}`}><span className={`timeline-node ${tone(event.status)}`}><i /></span><div><small>{String(event.sequence).padStart(2, "0")} · {event.event_type.replaceAll("_", " ")}</small><strong>{event.message}</strong></div><b className={tone(event.status)}>{event.status.replaceAll("_", " ")}</b>{!reducedMotion && <motion.i className="timeline-progress" initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.08, duration: 0.45 }} />}</li>) : <li className="timeline-empty"><Activity size={20} /><div><strong>No simulation events yet</strong><small>Run the sample or analyze a ZIP to populate this timeline from the backend.</small></div><Button size="sm" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}>Run sample</Button></li>}
+                  {timeline.length ? timeline.slice(0, 8).map((event, index) => <li key={`${event.sequence}-${event.event_type}`}><span className={`timeline-node ${tone(event.status)}`}><i /></span><div><small>{String(event.sequence).padStart(2, "0")} · {event.event_type.replaceAll("_", " ")}</small><strong>{event.message}</strong></div><b className={tone(event.status)}>{event.status.replaceAll("_", " ")}</b>{!reducedMotion && <motion.i className="timeline-progress" initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }} transition={{ delay: index * 0.08, duration: 0.45 }} />}</li>) : <li className="timeline-empty"><Activity size={20} /><div><strong>No simulation events yet</strong><small>Run the sample or analyze a ZIP to populate this timeline from the backend.</small></div>{canUseProduct ? <Button size="sm" onClick={runDemo} disabled={operationsDisabled}>Run sample</Button> : <SignInButton mode="modal"><Button size="sm">Sign in to run</Button></SignInButton>}</li>}
                 </ol>
               </div>
               <div className="simulation-stats">
@@ -604,7 +701,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
           <section className="section evidence-section" id="evidence">
             <SectionHeading kicker="07 / Evidence report" title="A scoped answer your team can inspect." body="Every safety dimension is independent: pass, fail, or not tested. A verified verdict is impossible without a successful clean-baseline execution." />
             <div className="report-card" data-gsap-reveal>
-              <div className="report-top"><div><span>dbsentinal / {analysis ? "EVIDENCE REPORT" : "AWAITING ANALYSIS"}</span><h3 className={tone(reportVerdict)}>{reportVerdict.replaceAll("_", " ")}</h3><p>Scoped to synthetic evidence · Human review required</p></div><div className="report-seal"><ShieldCheck size={29} /><span>{planVerified ? <>Plan evidence<br />verified</> : analysis ? <>Analysis evidence<br />available</> : <>No evidence<br />yet</>}</span></div></div>
+              <div className="report-top"><div><span>dbsentinal / {analysis ? "CANDIDATE EVIDENCE REPORT" : "AWAITING ANALYSIS"}</span><h3 className={tone(reportVerdict)}>{reportVerdict.replaceAll("_", " ")}</h3><p>Candidate verdict · Synthetic evidence · Human review required</p></div><div className="report-seal"><ShieldCheck size={29} /><span>{planVerified ? <>Recovery plan<br />verified separately</> : analysis ? <>Candidate evidence<br />available</> : <>No evidence<br />yet</>}</span></div></div>
               <div className="evidence-grid">
                 {reportDimensions.map((item) => <article key={item.key}><StatusIcon status={item.status} /><div><span>{item.label}</span><strong>{item.status.replaceAll("_", " ")}</strong><p>{item.summary}</p><small>{item.source.replaceAll("_", " ")}</small></div></article>)}
               </div>
@@ -612,45 +709,63 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
                 <p><LockKeyhole size={14} /> Raw uploads expire after the analysis lifecycle.</p>
                 {analysis ? (
                   <>
-                    <Button variant="secondary" onClick={downloadReport}><Download size={15} /> Download JSON report</Button>
+                    <Button variant="secondary" onClick={() => void downloadReport()} disabled={operationsDisabled}><Download size={15} /> Download JSON report</Button>
                     <Button size="sm" variant="danger" onClick={deleteAnalysis} disabled={operationsDisabled}><X size={14} /> Delete analysis</Button>
                   </>
                 ) : (
-                  <Button variant="secondary" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}>Create sample evidence <Play size={15} /></Button>
+                  canUseProduct ? <Button variant="secondary" onClick={runDemo} disabled={operationsDisabled}>Create sample evidence <Play size={15} /></Button> : <SignInButton mode="modal"><Button variant="secondary">Sign in to create evidence</Button></SignInButton>
                 )}
               </div>
-              <div className="report-section" style={{ marginTop: 12 }}>
-                <h4>AI insights ({visibleInsights.length})</h4>
-                <p style={{ marginTop: 0, color: "#b8c2d3" }}>Advisory analysis summaries pulled from sanitized findings.</p>
-                {canUseProduct ? (
-                  <div className="insight-buttons" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginBottom: 10 }}>
-                    {insightKinds.map((item) => (
-                      <Button
-                        key={item.kind}
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => void generateInsight(item.kind)}
-                        disabled={!analysis || operationsDisabled}
-                      >
-                        Generate {item.label}
-                      </Button>
-                    ))}
+              {verification && (
+                <div className="plan-verification-report">
+                  <div>
+                    <span>SEPARATE RECOVERY-PLAN VERIFICATION</span>
+                    <strong className={tone(verification.verdict)}>{verification.verdict.replaceAll("_", " ")}</strong>
+                    <p>This result applies to the generated recovery plan. It does not replace the candidate migration verdict above.</p>
                   </div>
-                ) : (
-                  <p style={{ margin: 0, color: "#b8c2d3" }}>Sign in to generate insights.</p>
-                )}
-                {visibleInsights.length === 0 ? (
-                  <article className="timeline-empty"><ShieldCheck size={15} /><div><strong>No insights yet</strong><small>Run an analysis to generate AI advisory summaries.</small></div></article>
-                ) : (
-                  visibleInsights.map((insight) => (
-                    <article key={insight.id} className="simulation-panel" style={{ marginTop: 8 }}>
-                      <strong>{insight.kind.replaceAll("_", " ")}</strong>
-                      <p>{insight.content}</p>
-                      <small>By {insight.provider} / {insight.model}</small>
+                  <div className="plan-verification-dimensions">
+                    {verification.dimensions.map((item) => <span key={item.key} className={tone(item.status)}>{item.label}: {item.status.replaceAll("_", " ")}</span>)}
+                  </div>
+                </div>
+              )}
+              <section className="ai-insights" aria-labelledby="ai-insights-title">
+                <header className="ai-insights-header">
+                  <div className="ai-insights-orb"><Sparkles size={20} /></div>
+                  <div><span>Sanitized advisory layer</span><h4 id="ai-insights-title">Analysis summaries</h4><p>Turn deterministic findings into language your team can review and act on.</p></div>
+                  <b className={visibleInsights.length ? "pass" : "not-tested"}>{visibleInsights.length} generated</b>
+                </header>
+                {canUseProduct ? (
+                  <div className="insight-actions">
+                    {insightKinds.map((item) => {
+                      const generated = visibleInsights.some((insight) => insight.kind === item.kind);
+                      const active = insightBusy === item.kind;
+                      const Icon = item.kind === "finding_explanations" ? Fingerprint : item.kind === "migration_summary" ? FileArchive : TriangleAlert;
+                      return (
+                        <button key={item.kind} type="button" className={generated ? "insight-action insight-action-generated" : "insight-action"} onClick={() => void generateInsight(item.kind)} disabled={!analysis?.findings.length || operationsDisabled || Boolean(insightBusy)}>
+                          <i><Icon size={18} /></i>
+                          <span><strong>{item.label}</strong><small>{item.kind === "finding_explanations" ? "Why each risk exists and what evidence confirms it." : item.kind === "migration_summary" ? "A concise technical brief of the analyzed change." : "Why a recovery approach failed semantic verification."}</small></span>
+                          <b>{active ? "Generating…" : generated ? "Regenerate" : "Generate"}</b>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : <div className="insight-signin"><LockKeyhole size={17} /><span>Sign in to generate analysis summaries.</span></div>}
+                <div className="insight-results" aria-live="polite">
+                  {visibleInsights.length === 0 ? (
+                    <article className="insight-empty">
+                      <i>{insightBusy ? <Sparkles size={22} /> : <ShieldCheck size={22} />}</i>
+                      <div><strong>{insightBusy ? "Creating the first summary" : analysis ? "Analysis complete—summary pending" : "No analysis evidence yet"}</strong><p>{insightBusy ? "The advisor is grounding its response in normalized findings." : analysis ? analysis.findings.length ? "A migration summary is generated automatically, or choose a focused explanation above." : "This analysis has no risk findings that require an AI explanation." : "Run the sample or upload a project bundle to generate evidence first."}</p></div>
                     </article>
-                  ))
-                )}
-              </div>
+                  ) : visibleInsights.map((insight) => (
+                    <article key={insight.id} className="insight-result">
+                      <div><span>{insight.kind.replaceAll("_", " ")}</span><b><CheckCircle2 size={13} /> Grounded</b></div>
+                      <p>{insight.content}</p>
+                      <footer><span>{insight.provider} · {insight.model}</span><span>{new Date(insight.generated_at).toLocaleString()}</span></footer>
+                    </article>
+                  ))}
+                </div>
+                <footer className="ai-insights-footer"><LockKeyhole size={14} /><span>Normalized findings only—no raw uploads, fixture values, or production credentials.</span></footer>
+              </section>
             </div>
           </section>
 
@@ -672,7 +787,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
           <section className="cta-section" id="cta" data-gsap-reveal>
             <div className="cta-grid" aria-hidden="true" />
             <div><span>BREAK IT BEFORE PRODUCTION DOES.</span><h2>Turn migration confidence<br />into recovery evidence.</h2><p>Run the unsafe phone-column demo in under five minutes.</p></div>
-            <div className="cta-actions"><Button size="lg" onClick={runDemo} disabled={operationsDisabled || !canUseProduct}><Play size={16} fill="currentColor" /> Run sample demo</Button><Link href="/architecture" className="text-link">Review architecture <ArrowRight size={15} /></Link></div>
+            <div className="cta-actions">{canUseProduct ? <Button size="lg" onClick={runDemo} disabled={operationsDisabled}><Play size={16} fill="currentColor" /> Run sample demo</Button> : <SignInButton mode="modal"><Button size="lg"><Play size={16} fill="currentColor" /> Sign in to run demo</Button></SignInButton>}<Link href="/architecture" className="text-link">Review architecture <ArrowRight size={15} /></Link></div>
           </section>
         </div>
 

@@ -7,3 +7,4 @@ out/
 *.tsbuildinfo
 npm-debug.log*
 gha-creds-*.json
+public/monaco/

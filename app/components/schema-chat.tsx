@@ -1,7 +1,7 @@
 "use client";
 
-import { Bot, Send, ShieldCheck, User } from "lucide-react";
-import { FormEvent, useState } from "react";
+import { Bot, CheckCircle2, LockKeyhole, Send, ShieldCheck, Sparkles, TriangleAlert, User } from "lucide-react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -27,12 +27,22 @@ export default function SchemaChat({ analysisId, disabled = false }: { analysisI
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [provider, setProvider] = useState<string | null>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    logRef.current?.scrollTo({ top: logRef.current.scrollHeight, behavior: "smooth" });
+  }, [busy, messages]);
 
   async function ask(question: string) {
     const message = question.trim();
     if (!analysisId || !message || busy || disabled) return;
     const userMessage: ChatMessage = { role: "user", content: message };
-    const history = [...messages, userMessage].slice(-8);
+    const lastMessage = messages.at(-1);
+    const history = (
+      lastMessage?.role === "user" && lastMessage.content === message
+        ? messages
+        : [...messages, userMessage]
+    ).slice(-8);
     setMessages(history);
     setInput("");
     setBusy(true);
@@ -75,21 +85,26 @@ export default function SchemaChat({ analysisId, disabled = false }: { analysisI
   return (
     <section className="schema-chat" aria-labelledby="schema-chat-title">
       <header>
-        <div><Bot size={18} /><span>Recommended changes</span></div>
+        <div><Sparkles size={18} /><span>Evidence advisor</span></div>
         <strong id="schema-chat-title">Ask about this schema change</strong>
-        <p>The advisor sees normalized findings and generated plan evidence—never fixture rows or production credentials.</p>
+        <p>Get plain-language answers grounded in this analysis, its findings, and the generated recovery plan.</p>
+        <div className="schema-chat-guardrails">
+          <span><CheckCircle2 size={14} /> Sanitized evidence</span>
+          <span><LockKeyhole size={14} /> No fixture values</span>
+          <span><ShieldCheck size={14} /> Human review required</span>
+        </div>
       </header>
-      <div className="schema-chat-log" aria-live="polite">
+      <div ref={logRef} className="schema-chat-log" aria-live="polite">
         {!analysisId && <div className="schema-chat-empty"><ShieldCheck size={19} /><span>Run an analysis to start an evidence-grounded conversation.</span></div>}
-        {analysisId && !messages.length && <div className="schema-chat-empty"><Bot size={19} /><span>Choose a focused question or ask your own. Answers remain advisory until sandbox verification passes.</span></div>}
+        {analysisId && !messages.length && <div className="schema-chat-empty"><i><Bot size={22} /></i><div><strong>Your analysis is ready to discuss</strong><span>Choose a suggested question below or ask in your own words.</span></div></div>}
         {messages.map((message, index) => <article key={`${message.role}-${index}`} className={`schema-message schema-message-${message.role}`}><i>{message.role === "user" ? <User size={13} /> : <Bot size={13} />}</i><div><small>{message.role === "user" ? "You" : "Schema advisor"}</small><p>{message.content}</p></div></article>)}
-        {busy && <div className="schema-chat-thinking"><i /><span>Grounding answer in sanitized evidence…</span></div>}
+        {busy && <div className="schema-chat-thinking"><i /><span>Grounding the answer in sanitized evidence…</span></div>}
       </div>
-      {error && <p className="schema-chat-error" role="alert">{error}</p>}
+      {error && <div className="schema-chat-error" role="alert"><TriangleAlert size={16} /><div><strong>Advisor could not answer</strong><span>{error}</span></div></div>}
       <div className="schema-chat-prompts">{suggestions.map((question) => <button key={question} type="button" onClick={() => void ask(question)} disabled={!analysisId || busy || disabled}>{question}</button>)}</div>
       <form onSubmit={submit}>
         <label htmlFor="schema-chat-input">Question about the migration or recovery plan</label>
-        <div><input id="schema-chat-input" value={input} onChange={(event) => setInput(event.target.value)} maxLength={2000} disabled={!analysisId || busy || disabled} placeholder={analysisId ? "Ask why, sequencing, compatibility, or verification…" : "Analysis required"} /><Button type="submit" size="sm" disabled={!analysisId || !input.trim() || busy || disabled}>Ask <Send size={14} /></Button></div>
+        <div><input id="schema-chat-input" value={input} onChange={(event) => setInput(event.target.value)} maxLength={2000} disabled={!analysisId || busy || disabled} placeholder={analysisId ? "Ask about risk, rollout order, compatibility, or recovery…" : "Analysis required"} /><Button type="submit" size="sm" disabled={!analysisId || !input.trim() || busy || disabled}>{busy ? "Thinking" : "Ask"} <Send size={14} /></Button></div>
       </form>
       <footer><span>{provider ?? "LangGraph constrained advisor"}</span><span>Advisory only · human review required</span></footer>
     </section>

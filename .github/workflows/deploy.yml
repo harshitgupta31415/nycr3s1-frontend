@@ -18,7 +18,7 @@ env:
   ARTIFACT_REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
   CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
   RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
-  BACKEND_URL: ${{ vars.GCP_BACKEND_URL || 'https://api.r3.get200.qd.je' }}
+  BACKEND_URL: https://nycr3s1-backend-s2tvvhxdpa-el.a.run.app
   SITE_URL: https://dbsentinal.get200.qd.je
   CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsuZGJzZW50aW5hbC5nZXQyMDAucWQuamUk' }}
   CLERK_AUTH_REQUIRED: ${{ vars.NEXT_PUBLIC_CLERK_AUTH_REQUIRED || 'true' }}
@@ -95,16 +95,25 @@ jobs:
             SITE_URL=${{ env.SITE_URL }}
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.CLERK_PUBLISHABLE_KEY }}
             NEXT_PUBLIC_CLERK_AUTH_REQUIRED=${{ env.CLERK_AUTH_REQUIRED }}
-            CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
           flags: >-
             --port=8080
             --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}
             --cpu=1
             --memory=512Mi
             --concurrency=80
-            --min-instances=0
-            --max-instances=3
+            --min-instances=1
+            --max-instances=5
             --allow-unauthenticated
+
+      - name: Bind Cloud Run Clerk secret from Secret Manager
+        shell: bash
+        run: |
+          gcloud run services update "${CLOUD_RUN_SERVICE}" \
+            --project="${PROJECT_ID}" \
+            --region="${REGION}" \
+            --remove-env-vars=CLERK_SECRET_KEY \
+            --update-secrets=CLERK_SECRET_KEY=nycr3s1-clerk-secret-key:latest \
+            --quiet
 
       - name: Verify production frontend
         shell: bash

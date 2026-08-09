@@ -6,9 +6,30 @@ analysis pipeline, explains deterministic findings, visualizes interruption
 evidence, generates a constrained recovery plan, and verifies that plan from a
 clean baseline.
 
+## Hackathon alignment
+
+This project is positioned in the **Build What Survives Failure** track.
+
+The core problem we solve is the invisible operational fragility people have
+accepted as normal: database migration decisions are made from static analysis and
+assumptions, without deterministic failure simulation or recovery verification.
+RollbackReady survives imperfect conditions by validating migrations under injected
+failures, reporting evidence by dimension, and producing bounded recovery options
+only after an independent re-run verifies them.
+
 The product promise is **verified for human review**, never "safe to deploy."
 The browser never receives production credentials and never sends an uploaded
 bundle directly to the backend origin.
+
+## Hackathon alignment
+
+This frontend is built for the **Build What Survives Failure** track.
+
+People often accept “best effort” migration confidence as normal, even though
+runtime failures are invisible until deploy. This interface turns that hidden risk
+into visible progress by surfacing deterministic evidence dimensions, failure
+timelines, and recovery-plan verification states so teams can make review decisions
+from evidence instead of a single pass/fail signal.
 
 ## Product flow
 
@@ -134,9 +155,17 @@ deploy that image to Cloud Run through Workload Identity Federation.
 
 Configured deployment targets:
 
-- Public application: `https://dbsentinal.get200.qd.je`
-- Cloud Run service: `nycr3s1-frontend` in `asia-south1`
-- Cloud Run origin: `https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app`
+- Public application: [https://dbsentinal.get200.qd.je](https://dbsentinal.get200.qd.je)
+- Cloud Run origin: [https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app](https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app)
+- Public docs endpoint: [https://dbsentinal.get200.qd.je/product](https://dbsentinal.get200.qd.je/product)
+- Product simulator: [https://dbsentinal.get200.qd.je/simulation](https://dbsentinal.get200.qd.je/simulation)
+- Architecture explainer: [https://dbsentinal.get200.qd.je/architecture](https://dbsentinal.get200.qd.je/architecture)
+- Evidence report page: [https://dbsentinal.get200.qd.je/reports](https://dbsentinal.get200.qd.je/reports)
+
+Backend endpoint:
+
+- API base: [https://nycr3s1-backend-s2tvvhxdpa-el.a.run.app](https://nycr3s1-backend-s2tvvhxdpa-el.a.run.app)
+- API docs: [https://nycr3s1-backend-s2tvvhxdpa-el.a.run.app/docs](https://nycr3s1-backend-s2tvvhxdpa-el.a.run.app/docs)
 
 `BACKEND_URL` is injected at runtime and is never exposed as a public browser
 environment variable. The public hostname terminates Google-managed TLS at an

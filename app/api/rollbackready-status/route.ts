@@ -9,21 +9,42 @@ export async function GET() {
     );
   }
   try {
-    const [readyResponse, healthResponse, databaseResponse] = await Promise.all([
-      fetch(`${backend}/health/ready`, { cache: "no-store", signal: AbortSignal.timeout(5_000) }),
-      fetch(`${backend}/health`, { cache: "no-store", signal: AbortSignal.timeout(5_000) }),
-      fetch(`${backend}/health/database`, { cache: "no-store", signal: AbortSignal.timeout(5_000) }),
-    ]);
-    const checks = {
-      ready: readyResponse.ok,
-      health: healthResponse.ok,
-      database: databaseResponse.ok,
-    };
-    if (!readyResponse.ok) throw new Error(`Backend readiness returned ${readyResponse.status}.`);
-    if (!checks.health || !checks.database) {
-      throw new Error("Auxiliary backend checks failed.");
+    const requireDatabase = process.env.NODE_ENV === "production"
+      || process.env.ROLLBACKREADY_REQUIRE_DATABASE === "true";
+    const healthResponse = await fetch(
+      `${backend}${requireDatabase ? "/health/ready" : "/health"}`,
+      {
+      cache: "no-store",
+      signal: AbortSignal.timeout(5_000),
+      },
+    );
+    if (!healthResponse.ok) {
+      throw new Error("Backend health check failed.");
     }
-    return Response.json({ status: "ready", checks });
+    const health = await healthResponse.json() as {
+      database?: { connected?: boolean };
+    };
+    if (!requireDatabase) {
+      return Response.json({
+        status: "ready",
+        checks: { ready: true, health: true, database: false },
+        mode: "local_ephemeral",
+      });
+    }
+    const databaseConnected = health.database?.connected === true;
+    const checks = {
+      ready: true,
+      health: true,
+      database: databaseConnected,
+    };
+    if (!databaseConnected) {
+      throw new Error("Backend database readiness check failed.");
+    }
+    return Response.json({
+      status: "ready",
+      checks,
+      mode: "durable",
+    });
   } catch {
     return Response.json(
       { status: "unavailable", message: "The analysis backend is not reachable." },
