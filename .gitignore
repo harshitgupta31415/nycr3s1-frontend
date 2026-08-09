@@ -1,0 +1,9 @@
+.next/
+node_modules/
+out/
+.vercel/
+.env*
+!.env.example
+*.tsbuildinfo
+npm-debug.log*
+gha-creds-*.json

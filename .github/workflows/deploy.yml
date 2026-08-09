@@ -1,0 +1,108 @@
+name: Test and deploy frontend to GCP
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION }}
+  ARTIFACT_REPOSITORY: ${{ vars.GCP_ARTIFACT_REPOSITORY }}
+  CLOUD_RUN_SERVICE: ${{ vars.GCP_CLOUD_RUN_SERVICE }}
+  RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
+  BACKEND_URL: ${{ vars.GCP_BACKEND_URL }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate production build
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run build
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - name: Set up Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Configure Artifact Registry authentication
+        run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+      - name: Build and push immutable image
+        id: image
+        shell: bash
+        run: |
+          IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/frontend:${GITHUB_SHA}"
+          docker build \
+            --build-arg "NEXT_PUBLIC_API_URL=${BACKEND_URL}" \
+            --tag "$IMAGE" .
+          docker push "$IMAGE"
+          echo "uri=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy public Cloud Run revision
+        id: deploy
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          region: ${{ env.REGION }}
+          service: ${{ env.CLOUD_RUN_SERVICE }}
+          image: ${{ steps.image.outputs.uri }}
+          env_vars: |-
+            BACKEND_URL=${{ env.BACKEND_URL }}
+          flags: >-
+            --port=8080
+            --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}
+            --cpu=1
+            --memory=512Mi
+            --concurrency=80
+            --min-instances=0
+            --max-instances=3
+            --allow-unauthenticated
+
+      - name: Verify production frontend
+        shell: bash
+        run: |
+          URL="${{ steps.deploy.outputs.url }}"
+          BODY="$(curl --fail --silent --show-error \
+            --retry 12 --retry-all-errors --retry-delay 5 "$URL")"
+          grep --fixed-strings --quiet \
+            "The infrastructure is ready for the idea" <<< "$BODY"
+          echo "GCP frontend URL - $URL" >> "$GITHUB_STEP_SUMMARY"
