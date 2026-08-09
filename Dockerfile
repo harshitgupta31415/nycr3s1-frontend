@@ -28,6 +28,7 @@ RUN groupadd --gid 10001 nodejs \
 
 COPY --from=builder --chown=10001:10001 /app/.next/standalone ./
 COPY --from=builder --chown=10001:10001 /app/.next/static ./.next/static
+COPY --from=builder --chown=10001:10001 /app/public ./public
 
 USER 10001:10001
 EXPOSE 8080
