@@ -1,29 +1,32 @@
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
 
 import "./globals.css";
 
-// RollbackReady is publicly hosted at https://dbsentinal.get200.qd.je.
 const siteUrl = process.env.SITE_URL ?? "https://dbsentinal.get200.qd.je";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  alternates: {
-    canonical: "/",
-  },
+  alternates: { canonical: "/" },
   title: "RollbackReady — Prisma migration recovery evidence",
-  description: "Replay, break, and verify Prisma PostgreSQL migrations before production.",
+  description: "Replay migration history, inject failures, check backward compatibility, and verify recovery before production.",
+  keywords: ["Prisma", "PostgreSQL", "database migrations", "migration safety", "developer tools"],
+  openGraph: {
+    title: "RollbackReady — See the failure. Verify the recovery.",
+    description: "Deterministic migration safety evidence for Prisma and PostgreSQL teams.",
+    type: "website",
+    url: "/",
+  },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#030305",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const document = (
-    <html lang="en">
-      <body>{children}</body>
-    </html>
-  );
+  const document = <html lang="en"><body>{children}</body></html>;
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  return publishableKey ? (
-    <ClerkProvider publishableKey={publishableKey}>{document}</ClerkProvider>
-  ) : document;
+  return publishableKey ? <ClerkProvider publishableKey={publishableKey}>{document}</ClerkProvider> : document;
 }
