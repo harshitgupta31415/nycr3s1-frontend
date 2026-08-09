@@ -2,6 +2,9 @@ import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
+import BootGate from "./components/boot-gate";
+import InteractionLayer from "./components/interaction-layer";
+
 import "./globals.css";
 
 const siteUrl = process.env.SITE_URL ?? "https://dbsentinal.get200.qd.je";
@@ -26,7 +29,7 @@ export const viewport: Viewport = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const document = <html lang="en"><body>{children}</body></html>;
+  const document = <html lang="en"><body><BootGate><InteractionLayer />{children}</BootGate></body></html>;
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   return publishableKey ? <ClerkProvider publishableKey={publishableKey}>{document}</ClerkProvider> : document;
 }

@@ -1,8 +1,8 @@
 "use client";
 
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion } from "motion/react";
-import type { ComponentProps } from "react";
+import { motion, useMotionValue, useReducedMotion, useSpring } from "motion/react";
+import type { ComponentProps, PointerEvent } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -34,12 +34,36 @@ const buttonVariants = cva(
 type ButtonProps = Omit<ComponentProps<typeof motion.button>, "ref"> &
   VariantProps<typeof buttonVariants>;
 
-export function Button({ className, variant, size, ...props }: ButtonProps) {
+export function Button({ className, variant, size, onPointerMove, onPointerLeave, style, ...props }: ButtonProps) {
+  const reducedMotion = useReducedMotion();
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const x = useSpring(rawX, { stiffness: 350, damping: 24, mass: .35 });
+  const y = useSpring(rawY, { stiffness: 350, damping: 24, mass: .35 });
+
+  function move(event: PointerEvent<HTMLButtonElement>) {
+    if (!reducedMotion && !props.disabled) {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      rawX.set(((event.clientX - bounds.left) / bounds.width - .5) * 7);
+      rawY.set(((event.clientY - bounds.top) / bounds.height - .5) * 5);
+    }
+    onPointerMove?.(event);
+  }
+
+  function leave(event: PointerEvent<HTMLButtonElement>) {
+    rawX.set(0);
+    rawY.set(0);
+    onPointerLeave?.(event);
+  }
+
   return (
     <motion.button
-      whileHover={props.disabled ? undefined : { y: -2 }}
-      whileTap={props.disabled ? undefined : { scale: 0.98 }}
+      whileHover={props.disabled ? undefined : { scale: 1.018 }}
+      whileTap={props.disabled ? undefined : { scale: 0.975 }}
       transition={{ duration: 0.16, ease: "easeOut" }}
+      onPointerMove={move}
+      onPointerLeave={leave}
+      style={{ ...style, x, y }}
       className={cn(buttonVariants({ variant, size }), className)}
       {...props}
     />

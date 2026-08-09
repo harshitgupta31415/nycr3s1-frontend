@@ -39,6 +39,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { toast, Toaster } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { HeroEmblem, IntroScene } from "./components/intro-scene";
 
 const MigrationFlow = dynamic(() => import("./components/migration-flow"), {
   ssr: false,
@@ -66,11 +67,11 @@ const clerkEnabled = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 const clerkAuthRequired = process.env.NEXT_PUBLIC_CLERK_AUTH_REQUIRED === "true";
 
 const navigation = [
-  ["Product", "#product"],
-  ["Risks", "#risks"],
-  ["Simulation", "#simulation"],
-  ["Recovery", "#recovery"],
-  ["Architecture", "#architecture"],
+  ["Product", "/product"],
+  ["Simulation", "/simulation"],
+  ["Architecture", "/architecture"],
+  ["Reports", "/reports"],
+  ["Live demo", "#product"],
 ];
 
 const defaultTimeline: TimelineEvent[] = [
@@ -250,6 +251,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
   return (
     <Tooltip.Provider delayDuration={180}>
       <main ref={rootRef} className="site-shell">
+        <IntroScene />
         <a href="#main-content" className="skip-link">Skip to content</a>
         <div className="ambient-orb ambient-orb-one" aria-hidden="true" />
         <div className="ambient-orb ambient-orb-two" aria-hidden="true" />
@@ -289,20 +291,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
                 <span><Check size={13} /> No production credentials</span>
               </div>
             </div>
-            <motion.aside className="hero-console" initial={reducedMotion ? false : { opacity: 0, x: 32 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.25, duration: 0.7 }} aria-label="Live migration analysis preview">
-              <div className="console-head"><span><i /><i /><i /></span><code>rollbackready / evidence-run</code><b>LIVE</b></div>
-              <div className="console-score">
-                <span>Candidate verdict</span><strong>{analysis?.verdict.replaceAll("_", " ") ?? "UNSAFE"}</strong>
-                <div className="score-ring"><span>{analysis ? Math.max(8, 100 - criticalCount * 35) : 28}<small>/100</small></span></div>
-              </div>
-              <div className="console-lines">
-                <ConsoleLine label="history.replay" value="passed" tone="good" delay="0ms" />
-                <ConsoleLine label="constraint.scan" value={analysis ? `${criticalCount} critical` : "1 critical"} tone="bad" delay="150ms" />
-                <ConsoleLine label="legacy_queries" value="blocked" tone="bad" delay="300ms" />
-                <ConsoleLine label="recovery.plan" value={plan ? plan.state.toLowerCase() : "required"} tone={plan ? "good" : "warn"} delay="450ms" />
-              </div>
-              <div className="console-footer"><ShieldCheck size={15} /><span>Verified for human review</span><small>never “safe to deploy”</small></div>
-            </motion.aside>
+            <HeroEmblem verdict={analysis?.verdict.replaceAll("_", " ") ?? "UNSAFE"} score={analysis ? Math.max(8, 100 - criticalCount * 35) : 28} />
           </section>
 
           <AnimatePresence>
@@ -440,13 +429,13 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
           <section className="cta-section" id="cta" data-gsap-reveal>
             <div className="cta-grid" aria-hidden="true" />
             <div><span>BREAK IT BEFORE PRODUCTION DOES.</span><h2>Turn migration confidence<br />into recovery evidence.</h2><p>Run the unsafe phone-column demo in under five minutes.</p></div>
-            <div className="cta-actions"><Button size="lg" onClick={runDemo} disabled={Boolean(busy) || !canUseProduct}><Play size={16} fill="currentColor" /> Run live demo</Button><a href="#architecture" className="text-link">Review architecture <ArrowRight size={15} /></a></div>
+            <div className="cta-actions"><Button size="lg" onClick={runDemo} disabled={Boolean(busy) || !canUseProduct}><Play size={16} fill="currentColor" /> Run live demo</Button><a href="/architecture" className="text-link">Review architecture <ArrowRight size={15} /></a></div>
           </section>
         </div>
 
         <footer className="footer">
           <div><a href="#top" className="brand"><span className="brand-mark"><RotateCcw size={16} /></span><span>Rollback<span>Ready</span></span></a><p>Migration recovery evidence for Prisma teams.</p></div>
-          <div className="footer-links"><a href="#product">Product</a><a href="#risks">Risk engine</a><a href="#evidence">Evidence</a><a href="https://github.com/harshitgupta31415" target="_blank" rel="noreferrer"><Code2 size={14} /> GitHub</a></div>
+          <div className="footer-links"><a href="/product">Product</a><a href="/simulation">Simulation</a><a href="/architecture">Architecture</a><a href="/reports">Reports</a><a href="https://github.com/harshitgupta31415" target="_blank" rel="noreferrer"><Code2 size={14} /> GitHub</a></div>
           <div className="footer-meta"><span>NYC R3S1 / HACKATHON MVP</span><span>PostgreSQL only · Reports expire in 24h</span></div>
         </footer>
         <Toaster theme="dark" richColors position="bottom-right" closeButton />
@@ -459,7 +448,6 @@ function SectionHeading({ kicker, title, body }: { kicker: string; title: string
   return <div className="section-heading" data-gsap-reveal><span>{kicker}</span><div><h2>{title}</h2><p>{body}</p></div></div>;
 }
 function VisualLoader({ label }: { label: string }) { return <div className="visual-loader" role="status"><span className="spinner" />{label}</div>; }
-function ConsoleLine({ label, value, tone: color, delay }: { label: string; value: string; tone: string; delay: string }) { return <div className="console-line" style={{ "--line-delay": delay } as React.CSSProperties}><code><ChevronRight size={12} />{label}</code><span className={color}><i />{value}</span></div>; }
 function Metric({ label, value }: { label: string; value: string }) { return <div className="metric"><span>{label}</span><strong>{value}</strong></div>; }
 function Stat({ icon: Icon, label, value }: { icon: typeof Clock3; label: string; value: string }) { return <article><Icon size={17} /><span>{label}</span><strong>{value}</strong></article>; }
 function StatusIcon({ status }: { status: EvidenceStatus }) { return <span className={`status-icon ${tone(status)}`}>{status === "PASS" ? <Check size={17} /> : status === "FAIL" ? <X size={17} /> : <CircleDot size={17} />}</span>; }
