@@ -137,3 +137,13 @@ Verification:
 Fetched origin/main with no remote-only commits; the release branch was two commits ahead. ESLint, TypeScript type checking, and the Next.js production build all passed, including the same-origin RollbackReady API proxy route.
 Deployment:
 The direct origin/main push is explicitly authorized by the user. This release commit is intended to trigger the existing Cloud Run deployment workflow; live rollout success must be confirmed from GitHub Actions and both frontend URLs.
+
+[2026-08-09 17:56:30 IST]
+Task:
+Finish the multi-page RollbackReady frontend release and repair its production verification without hiding the project context.
+Changes:
+Published frontend commit 4672dcf with the routed Product, Simulation, Architecture, and Reports experiences, the evidence-first homepage, startup and interaction layers, and responsive overflow/intro safeguards. Updated both deployment smoke assertions from the removed "Know how it fails." copy to the current stable "See the failure." headline. The context directory remains deliberately unignored; no .gitignore file was changed.
+Verification:
+ESLint, TypeScript type checking, git diff validation, and the optimized Next.js 16 production build passed. GitHub Actions built and deployed commit 4672dcf to Cloud Run. Both the direct Cloud Run URL and https://dbsentinal.get200.qd.je returned HTTP 200 with the new headline. The initial post-deploy workflow check failed only because its assertion still expected the removed headline; the live application itself was healthy, and this release repair aligns the automated check with the shipped UI.
+Deployment:
+Frontend commit 4672dcf is serving from both production endpoints. The scoped workflow repair is intended to rerun the existing production smoke gate against those same endpoints; no production database or backend infrastructure is changed by this frontend-only fix.
