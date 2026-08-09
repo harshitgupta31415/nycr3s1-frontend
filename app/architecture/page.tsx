@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 
 import FeaturePage from "@/app/components/feature-page";
 
-export const metadata: Metadata = { title: "Architecture | RollbackReady", description: "The isolated architecture behind RollbackReady migration simulation and recovery verification." };
+export const metadata: Metadata = {
+  title: "Architecture | dbsentinal",
+  description: "The isolated architecture behind dbsentinal migration simulation and recovery verification.",
+  alternates: { canonical: "/architecture" },
+  openGraph: { url: "/architecture" },
+};
 
 export default function ArchitecturePage() {
   return <FeaturePage eyebrow="ARCHITECTURE / ISOLATED BY DESIGN" title="Production never enters" accent="the simulation boundary." summary="Next.js coordinates the evidence experience. FastAPI validates and orchestrates. A disposable PostgreSQL cluster executes through a Unix socket with a non-superuser role. Gemini receives only normalized findings and redacted SQL shapes." metric="0" metricLabel="Production links" variant="architecture" stages={[
@@ -17,3 +22,4 @@ export default function ArchitecturePage() {
     { label:"Production access", value:"Connection strings rejected", status:"BLOCKED" },
   ]} />;
 }
+

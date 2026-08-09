@@ -1,13 +1,24 @@
 "use client";
 
-import { Database, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, Database, ScanLine, ShieldCheck, Sparkles } from "lucide-react";
 import { motion, useMotionValue, useReducedMotion, useSpring, useTransform } from "motion/react";
 import Image from "next/image";
-import type { PointerEvent } from "react";
+import type { PointerEvent, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
+
+function hideBrokenImage(event: SyntheticEvent<HTMLImageElement>) {
+  event.currentTarget.hidden = true;
+}
+
+function formatTimecode(elapsed: number) {
+  const seconds = Math.min(59, Math.floor(elapsed / 1000));
+  const frames = Math.min(23, Math.floor((elapsed % 1000) / (1000 / 24)));
+  return `00:00:${String(seconds).padStart(2, "0")}:${String(frames).padStart(2, "0")}`;
+}
 
 export function IntroScene() {
   const [visible, setVisible] = useState(true);
+  const [timecode, setTimecode] = useState("00:00:00:00");
   const reducedMotion = useReducedMotion();
   const rootRef = useRef<HTMLDivElement>(null);
   const stopRef = useRef<(() => void) | null>(null);
@@ -18,29 +29,55 @@ export function IntroScene() {
       return () => cancelAnimationFrame(frame);
     }
     let cancelled = false;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        stopRef.current?.();
+        setVisible(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    const startedAt = performance.now();
+    const clock = window.setInterval(() => setTimecode(formatTimecode(performance.now() - startedAt)), 42);
     const fallbackTimer = window.setTimeout(() => {
       cancelled = true;
       stopRef.current?.();
+      window.clearInterval(clock);
       setVisible(false);
-    }, 3500);
+    }, 7400);
+
     void import("gsap").then(({ gsap }) => {
       if (cancelled || !rootRef.current) return;
       const context = gsap.context(() => {
+        gsap.set([".cine-shot-orbit", ".cine-shot-title", ".cine-flash"], { opacity: 0 });
         const timeline = gsap.timeline({
           defaults: { ease: "power3.out" },
           onComplete: () => {
             window.clearTimeout(fallbackTimer);
+            window.clearInterval(clock);
             setVisible(false);
           },
         });
         timeline
-          .fromTo(".intro-grid", { opacity: 0 }, { opacity: 1, duration: 0.35 })
-          .fromTo(".intro-ring-outer", { scale: 0.25, rotateZ: -110, opacity: 0 }, { scale: 1, rotateZ: 0, opacity: 1, duration: 1.05 }, 0.05)
-          .fromTo(".intro-ring-inner", { scale: 1.5, rotateZ: 90, opacity: 0 }, { scale: 1, rotateZ: 0, opacity: 1, duration: 0.9 }, 0.12)
-          .fromTo(".intro-emblem", { scale: 0.36, rotateX: 68, rotateY: -34, z: -320, opacity: 0 }, { scale: 1, rotateX: 0, rotateY: 0, z: 0, opacity: 1, duration: 1.18 }, 0.18)
-          .fromTo(".intro-scan", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: 0.5 }, 0.7)
-          .fromTo(".intro-copy > *", { y: 18, opacity: 0 }, { y: 0, opacity: 1, stagger: 0.09, duration: 0.5 }, 0.82)
-          .to(".intro-scene", { opacity: 0, scale: 1.025, filter: "blur(12px)", duration: 0.62, ease: "power2.in" }, 2.15);
+          .fromTo(".cine-letterbox-top", { yPercent: -100 }, { yPercent: 0, duration: .45, ease: "power2.out" }, 0)
+          .fromTo(".cine-letterbox-bottom", { yPercent: 100 }, { yPercent: 0, duration: .45, ease: "power2.out" }, 0)
+          .fromTo(".cine-hud", { opacity: 0 }, { opacity: 1, duration: .35 }, .16)
+          .fromTo(".cine-shot-close", { opacity: 0, scale: 1.55, rotateZ: -5, xPercent: 15 }, { opacity: 1, scale: 1.13, rotateZ: -1.5, xPercent: 0, duration: 1.1, ease: "power2.out" }, .08)
+          .fromTo(".cine-close-image", { filter: "blur(16px) brightness(.55)" }, { filter: "blur(0px) brightness(1)", duration: .65 }, .18)
+          .fromTo(".cine-caption > *", { y: 14, opacity: 0 }, { y: 0, opacity: 1, stagger: .08, duration: .4 }, .48)
+          .to(".cine-shot-close", { scale: 1.75, xPercent: -17, yPercent: -5, filter: "blur(8px)", opacity: 0, duration: .58, ease: "power2.in" }, 1.35)
+          .fromTo(".cine-flash", { opacity: 0 }, { opacity: .78, duration: .08, yoyo: true, repeat: 1 }, 1.72)
+          .fromTo(".cine-shot-orbit", { opacity: 0, scale: .64, rotateX: 52, rotateY: -30, z: -360 }, { opacity: 1, scale: 1, rotateX: 0, rotateY: 0, z: 0, duration: 1.05, ease: "expo.out" }, 1.78)
+          .fromTo(".cine-ring", { scale: .45, opacity: 0, rotateZ: -80 }, { scale: 1, opacity: 1, rotateZ: 0, stagger: .1, duration: .72 }, 1.92)
+          .fromTo(".cine-data-card", { opacity: 0, y: 20, scale: .88 }, { opacity: 1, y: 0, scale: 1, stagger: .11, duration: .48 }, 2.25)
+          .fromTo(".cine-orbit-scan", { scaleX: 0, opacity: 0 }, { scaleX: 1, opacity: 1, duration: .55 }, 2.5)
+          .to(".cine-emblem-object", { rotateY: 8, rotateX: -4, scale: 1.06, duration: 1.2, ease: "sine.inOut" }, 2.45)
+          .to(".cine-shot-orbit", { opacity: 0, scale: 1.35, filter: "blur(12px)", duration: .62, ease: "power2.in" }, 3.55)
+          .fromTo(".cine-shot-title", { opacity: 0, scale: .92 }, { opacity: 1, scale: 1, duration: .42 }, 3.75)
+          .fromTo(".cine-title-kicker", { letterSpacing: ".45em", opacity: 0 }, { letterSpacing: ".16em", opacity: 1, duration: .55 }, 3.84)
+          .fromTo(".cine-title-line", { yPercent: 120, rotateX: -45, opacity: 0 }, { yPercent: 0, rotateX: 0, opacity: 1, stagger: .13, duration: .65, ease: "expo.out" }, 4.02)
+          .fromTo(".cine-title-meta > *", { y: 12, opacity: 0 }, { y: 0, opacity: 1, stagger: .08, duration: .4 }, 4.55)
+          .to(".cine-shot-title", { opacity: 1, duration: .9, ease: "none" }, 4.95)
+          .to(rootRef.current, { opacity: 0, scale: 1.03, filter: "blur(15px) brightness(1.25)", duration: .72, ease: "power2.in" }, 5.72);
         stopRef.current = () => timeline.kill();
       }, rootRef);
       stopRef.current = () => context.revert();
@@ -48,6 +85,8 @@ export function IntroScene() {
     return () => {
       cancelled = true;
       window.clearTimeout(fallbackTimer);
+      window.clearInterval(clock);
+      window.removeEventListener("keydown", handleKeyDown);
       stopRef.current?.();
     };
   }, [reducedMotion]);
@@ -59,26 +98,46 @@ export function IntroScene() {
 
   if (!visible) return null;
   return (
-    <div ref={rootRef} className="intro-scene" aria-label="RollbackReady introduction">
-      <div className="intro-grid" aria-hidden="true" />
-      <div className="intro-bloom" aria-hidden="true" />
-      <div className="intro-object" aria-hidden="true">
-        <i className="intro-ring-outer" />
-        <i className="intro-ring-inner" />
-        <Image className="intro-emblem" src="/rollbackready-emblem.png" width={520} height={520} priority unoptimized alt="" />
-        <i className="intro-scan" />
+    <div ref={rootRef} className="intro-scene cine-scene" aria-label="dbsentinal cinematic introduction">
+      <div className="cine-film-grain" aria-hidden="true" />
+      <div className="cine-vignette" aria-hidden="true" />
+      <div className="cine-letterbox cine-letterbox-top" aria-hidden="true" />
+      <div className="cine-letterbox cine-letterbox-bottom" aria-hidden="true" />
+      <div className="cine-hud" aria-hidden="true"><span><i /> RR_FILM / 001</span><time>{timecode}</time><b>REC</b></div>
+
+      <div className="cine-shot cine-shot-close" aria-hidden="true">
+        <div className="cine-close-image">
+          <div className="cine-image-fallback"><ShieldCheck size={110} /><Database size={62} /></div>
+          <Image src="/rollbackready-emblem.png" width={900} height={900} priority alt="" onError={hideBrokenImage} />
+        </div>
+        <div className="cine-caption"><span>SHOT 01 / RECONSTRUCT</span><strong>Migration history located.</strong><small>Rebuilding the pre-candidate schema</small></div>
       </div>
-      <div className="intro-copy">
-        <span>ROLLBACKREADY / SYSTEM BOOT</span>
-        <strong>Failure simulation online.</strong>
-        <small>POSTGRESQL SANDBOX · DETERMINISTIC EVIDENCE</small>
+
+      <div className="cine-shot cine-shot-orbit" aria-hidden="true">
+        <div className="cine-orbit-grid" />
+        <div className="cine-emblem-object">
+          <i className="cine-ring cine-ring-one" /><i className="cine-ring cine-ring-two" /><i className="cine-ring cine-ring-three" />
+          <div className="cine-orbit-image"><div className="cine-image-fallback"><ShieldCheck size={90} /><Database size={48} /></div><Image src="/rollbackready-emblem.png" width={580} height={580} priority alt="" onError={hideBrokenImage} /></div>
+          <i className="cine-orbit-scan" />
+        </div>
+        <div className="cine-data-card cine-data-one"><Activity size={14} /><span>FAILURE BOUNDARY</span><strong>STATEMENT 01</strong></div>
+        <div className="cine-data-card cine-data-two"><Database size={14} /><span>SANDBOX</span><strong>ISOLATED</strong></div>
+        <div className="cine-data-card cine-data-three"><ShieldCheck size={14} /><span>RECOVERY</span><strong>REQUIRED</strong></div>
       </div>
-      <button type="button" onClick={skip}>Skip intro</button>
+
+      <div className="cine-shot cine-shot-title">
+        <span className="cine-title-kicker">PRISMA MIGRATION INTELLIGENCE</span>
+        <h2><span className="cine-title-mask"><i className="cine-title-line">SEE THE FAILURE.</i></span><span className="cine-title-mask"><i className="cine-title-line">VERIFY THE RECOVERY.</i></span></h2>
+        <div className="cine-title-meta"><span><ScanLine size={13} /> BREAK</span><i /><span><Database size={13} /> REPLAY</span><i /><span><ShieldCheck size={13} /> VERIFY</span></div>
+      </div>
+      <div className="cine-flash" aria-hidden="true" />
+      <div className="cine-progress" aria-hidden="true"><i /><i /><i /></div>
+      <button type="button" onClick={skip}>Skip film <span>ESC</span></button>
     </div>
   );
 }
 
-export function HeroEmblem({ verdict, score }: { verdict: string; score: number }) {
+export function HeroEmblem({ verdict }: { verdict: string }) {
   const reducedMotion = useReducedMotion();
   const x = useMotionValue(0);
   const y = useMotionValue(0);
@@ -99,24 +158,20 @@ export function HeroEmblem({ verdict, score }: { verdict: string; score: number 
   return (
     <div className="emblem-scene" onPointerMove={move} onPointerLeave={reset}>
       <div className="emblem-grid" aria-hidden="true" />
-      <motion.div
-        className="emblem-object"
-        style={reducedMotion ? undefined : { rotateX, rotateY }}
-        initial={reducedMotion ? false : { opacity: 0, scale: 0.68, rotateZ: -8 }}
-        animate={{ opacity: 1, scale: 1, rotateZ: 0 }}
-        transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1], delay: 0.18 }}
-      >
-        <i className="emblem-orbit orbit-one" aria-hidden="true" />
-        <i className="emblem-orbit orbit-two" aria-hidden="true" />
+      <motion.div className="emblem-object" style={reducedMotion ? undefined : { rotateX, rotateY }} initial={reducedMotion ? false : { opacity: 0, scale: 0.68, rotateZ: -8 }} animate={{ opacity: 1, scale: 1, rotateZ: 0 }} transition={{ duration: 1.05, ease: [0.16, 1, 0.3, 1], delay: 0.18 }}>
+        <i className="emblem-orbit orbit-one" aria-hidden="true" /><i className="emblem-orbit orbit-two" aria-hidden="true" />
         <div className="emblem-image-wrap">
-          <Image src="/rollbackready-emblem.png" width={680} height={680} priority unoptimized alt="RollbackReady shield protecting a database" draggable={false} />
+          <div className="emblem-fallback" aria-hidden="true"><ShieldCheck size={84} /><Database size={42} /></div>
+          <Image src="/rollbackready-emblem.png" width={680} height={680} priority alt="" draggable={false} onError={hideBrokenImage} />
+          <span className="sr-only">dbsentinal shield protecting a database</span>
         </div>
         <span className="emblem-floor" aria-hidden="true" />
       </motion.div>
       <motion.div className="scene-chip scene-chip-one" animate={reducedMotion ? undefined : { y: [0, -9, 0] }} transition={{ repeat: Infinity, duration: 4.2, ease: "easeInOut" }}><Database size={14} /><span>Sandbox</span><strong>READY</strong></motion.div>
       <motion.div className="scene-chip scene-chip-two" animate={reducedMotion ? undefined : { y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 4.8, ease: "easeInOut", delay: 0.4 }}><ShieldCheck size={14} /><span>Verdict</span><strong>{verdict}</strong></motion.div>
-      <motion.div className="scene-score" animate={reducedMotion ? undefined : { rotate: [0, 2, 0, -2, 0] }} transition={{ repeat: Infinity, duration: 7 }}><Sparkles size={13} /><strong>{score}</strong><span>/100</span></motion.div>
+      <motion.div className="scene-score" animate={reducedMotion ? undefined : { rotate: [0, 2, 0, -2, 0] }} transition={{ repeat: Infinity, duration: 7 }}><Sparkles size={13} /><strong>—</strong><span>NO RISK SCORE</span></motion.div>
       <span className="scene-instruction">MOVE TO INSPECT DEPTH</span>
     </div>
   );
 }
+

@@ -1,23 +1,59 @@
-# RollbackReady frontend
+# dbsentinal frontend
 
-Next.js evidence stepper for the RollbackReady Prisma migration safety agent.
-It includes the unsafe-phone judge demo, project upload, schema history, risk
-dashboard, failure timeline, safer plan, clean-baseline verification, and JSON
-evidence report. Browser uploads are proxied through the Next.js server route;
-the browser never sends artifacts directly to the backend origin.
+dbsentinal is a Next.js interface for evidence-based Prisma migration review.
+It stages a project bundle through a server-side API proxy, runs the PostgreSQL
+analysis pipeline, explains deterministic findings, visualizes interruption
+evidence, generates a constrained recovery plan, and verifies that plan from a
+clean baseline.
 
-The proxy forwards only the Authorization header and Clerk session cookies,
-while leaving unrelated browser cookies behind. This supports owner-isolated
-Clerk mode when configured and the opaque-ID anonymous hackathon mode when it
-is not.
+The product promise is **verified for human review**, never "safe to deploy."
+The browser never receives production credentials and never sends an uploaded
+bundle directly to the backend origin.
 
-- Public production URL: `https://dbsentinal.get200.qd.je`
-- Cloud Run origin: `https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app`
-- Cloud Run service: `nycr3s1-frontend` in GCP `asia-south1`
-- Framework: Next.js 16.3 with React 19
-- Hosted runtime: Cloud Run with Node.js 24
+## Product flow
 
-## Development
+1. Run the built-in unsafe-phone demo or upload a Prisma project ZIP.
+2. Review migration history, deterministic findings, and the candidate verdict.
+3. Inspect normal execution, legacy-query replay, and interruption evidence.
+4. Generate an expand-and-contract recovery plan through the backend planner.
+5. Verify the generated SQL in a fresh disposable PostgreSQL 18 sandbox.
+6. Download the sanitized JSON evidence report.
+
+The candidate verdict and recovery-plan verdict are deliberately independent. An
+unsafe candidate remains `UNSAFE` even when a replacement plan earns
+`VERIFIED_FOR_REVIEW`.
+
+## Application routes
+
+| Route | Purpose |
+| --- | --- |
+| `/` | Complete interactive analysis and recovery workflow |
+| `/product` | Product capabilities and safety promise |
+| `/simulation` | Sandbox and failure-injection explanation |
+| `/architecture` | System boundaries and component overview |
+| `/reports` | Evidence model and report explanation |
+| `/api/rollbackready/[...path]` | Server-side proxy to backend `/api/v1/*` routes |
+
+## Technology
+
+- Next.js 16.3 and React 19
+- TypeScript 6
+- Clerk 7 for optional authentication
+- Motion, GSAP, and Lenis for interaction and scroll behavior
+- Monaco Editor for SQL presentation
+- XYFlow for the migration pipeline
+- Radix UI, Lucide, and Sonner for accessible UI primitives and feedback
+- Tailwind CSS 4 plus application-level styles
+- Node.js 24 in the production container
+
+## Local development
+
+### Prerequisites
+
+- Node.js 24 and npm
+- A running dbsentinal backend, normally at `http://localhost:8080`
+
+### Start the app
 
 ```powershell
 npm install
@@ -25,18 +61,91 @@ Copy-Item .env.example .env.local
 npm run dev
 ```
 
-## Continuous deployment
+Open `http://localhost:3000`. The frontend server proxies API calls to the value
+of `BACKEND_URL`.
 
-GitHub Actions tests every pushed branch. A push to `main` additionally builds an
-immutable Docker image, publishes it to Google Artifact Registry, and deploys a
-new public Cloud Run revision. Authentication uses Google Workload Identity
-Federation, so GitHub stores no GCP service-account key.
+### Environment variables
 
-`BACKEND_URL` points to the stable HTTPS Cloud Run backend and is configured on
-the frontend Cloud Run service at deployment time. `SITE_URL` is the canonical
-public hostname used by Next.js metadata and is configured as
-`https://dbsentinal.get200.qd.je` in the deployment workflow.
+| Variable | Required | Description |
+| --- | --- | --- |
+| `BACKEND_URL` | Yes | Server-only FastAPI origin; defaults to `http://localhost:8080` |
+| `SITE_URL` | Yes in production | Canonical URL used by Next.js metadata |
+| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | No | Enables Clerk UI when paired with backend credentials |
+| `CLERK_SECRET_KEY` | No | Server-only Clerk credential used by the API proxy |
+| `NEXT_PUBLIC_CLERK_AUTH_REQUIRED` | No | Set to `true` only when both frontend and backend require sign-in |
 
-The public hostname is served through a Google Cloud external HTTPS load
-balancer backed by the `nycr3s1-frontend` Cloud Run service. Google-managed TLS
-provides the certificate for `dbsentinal.get200.qd.je`.
+Keep Clerk disabled for the anonymous hackathon flow by leaving the publishable
+key blank and `NEXT_PUBLIC_CLERK_AUTH_REQUIRED=false`.
+
+## Commands
+
+```powershell
+npm run dev        # development server
+npm run lint       # ESLint
+npm run typecheck  # TypeScript without emitting files
+npm run build      # production build
+npm run start      # run the production build
+```
+
+## API proxy and authentication
+
+All browser requests use `/api/rollbackready/*`. The route handler:
+
+- maps the request to backend `/api/v1/*`;
+- forwards the HTTP method, body, content type, and query string;
+- obtains and forwards a Clerk bearer token when Clerk is configured;
+- does not forward unrelated browser cookies;
+- preserves `WWW-Authenticate` and `Retry-After` response headers;
+- enforces a 120-second upstream timeout; and
+- adds a safe download filename for JSON reports.
+
+Authorization is enforced again by FastAPI. In anonymous mode, possession of the
+opaque analysis UUID is the temporary access boundary. In Clerk mode, the backend
+also checks report ownership.
+
+## Project structure
+
+```text
+app/
+|-- api/rollbackready/[...path]/  # backend-for-frontend API proxy
+|-- architecture/                # architecture explainer route
+|-- components/                  # product visuals and interaction layers
+|-- product/                     # product explainer route
+|-- reports/                     # evidence-report route
+|-- simulation/                  # simulator explainer route
+|-- globals.css                  # design system and responsive layout
+|-- layout.tsx                   # metadata, Clerk provider, global shell
+`-- page.tsx                     # complete interactive workflow
+components/ui/                   # reusable UI primitives
+lib/                             # shared frontend helpers
+public/                          # static assets
+proxy.ts                         # optional Clerk middleware
+```
+
+The backend design is documented in
+[`../backend/architecture.md`](../backend/architecture.md).
+
+## Deployment
+
+The production Dockerfile builds a standalone Next.js image and runs it as an
+unprivileged user on port `8080`. GitHub Actions tests every branch; pushes to
+`main` build an immutable image, publish it to Google Artifact Registry, and
+deploy that image to Cloud Run through Workload Identity Federation.
+
+Configured deployment targets:
+
+- Public application: `https://dbsentinal.get200.qd.je`
+- Cloud Run service: `nycr3s1-frontend` in `asia-south1`
+- Cloud Run origin: `https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app`
+
+`BACKEND_URL` is injected at runtime and is never exposed as a public browser
+environment variable. The public hostname terminates Google-managed TLS at an
+external HTTPS load balancer backed by Cloud Run.
+
+## Current scope
+
+The hackathon MVP executes PostgreSQL Prisma migrations only. It uses synthetic
+fixtures, does not connect to production, and treats lock risk as a heuristic.
+Raw artifacts are managed by the backend and expire with the analysis lifecycle;
+the frontend displays only sanitized evidence returned by the API.
+

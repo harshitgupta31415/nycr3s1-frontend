@@ -33,7 +33,10 @@ export default function FeaturePage({ eyebrow, title, accent, summary, metric, m
       <div className="feature-aurora" aria-hidden="true" />
       <header className="feature-nav">
         <Link href="/" className="brand"><span className="brand-mark"><RotateCcw size={17} /></span><span>Rollback<span>Ready</span></span></Link>
-        <nav aria-label="Product pages">{nav.map(([label, href]) => <Link key={href} href={href} className={href === `/${variant}` ? "active" : ""}>{label}</Link>)}</nav>
+        <nav aria-label="Product pages">{nav.map(([label, href]) => {
+          const active = href === `/${variant}`;
+          return <Link key={href} href={href} className={active ? "active" : ""} aria-current={active ? "page" : undefined}>{label}</Link>;
+        })}</nav>
         <Link href="/#product" className="feature-nav-demo"><Play size={13} fill="currentColor" /> Live demo</Link>
       </header>
 
@@ -46,12 +49,14 @@ export default function FeaturePage({ eyebrow, title, accent, summary, metric, m
         </motion.div>
         <motion.div className="feature-emblem" initial={reducedMotion ? false : { opacity: 0, rotateY: -35, rotateX: 22, scale: .62 }} animate={{ opacity: 1, rotateY: -9, rotateX: 7, scale: 1 }} transition={{ duration: 1.2, ease: [0.16,1,.3,1], delay: .12 }}>
           <i className="feature-emblem-ring" />
-          <Image src="/rollbackready-emblem.png" width={520} height={520} priority unoptimized alt="RollbackReady database protection emblem" />
+          <div className="feature-emblem-fallback" aria-hidden="true"><ShieldCheck size={72} /><Database size={38} /></div>
+          <Image src="/rollbackready-emblem.png" width={520} height={520} priority alt="" onError={(event) => { event.currentTarget.hidden = true; }} />
+          <span className="sr-only">dbsentinal database protection emblem</span>
           <div><span>{metricLabel}</span><strong>{metric}</strong><small>LIVE SYSTEM TARGET</small></div>
         </motion.div>
       </section>
 
-      <div className="feature-ticker" aria-label="RollbackReady safety capabilities"><div>{["MIGRATION HISTORY", "FAILURE INJECTION", "LEGACY QUERY REPLAY", "RECOVERY VERIFICATION", "HUMAN REVIEW", "NO PRODUCTION ACCESS"].map((item) => <span key={item}><i />{item}</span>)}</div></div>
+      <div className="feature-ticker" aria-label="dbsentinal safety capabilities"><div>{["MIGRATION HISTORY", "FAILURE INJECTION", "LEGACY QUERY REPLAY", "RECOVERY VERIFICATION", "HUMAN REVIEW", "NO PRODUCTION ACCESS"].map((item) => <span key={item}><i />{item}</span>)}</div></div>
 
       <section className="feature-story">
         <div className="feature-section-title"><span>01 / HOW IT WORKS</span><h2>Evidence moves through<br />an explicit system.</h2></div>
@@ -83,7 +88,7 @@ export default function FeaturePage({ eyebrow, title, accent, summary, metric, m
       </section>
 
       <section className="feature-cta">
-        <Sparkles size={25} /><span>ROLLBACKREADY</span><h2>See the failure.<br />Verify the recovery.</h2><Link href="/#product" className="feature-primary-link">Launch the demo <Zap size={16} /></Link>
+        <Sparkles size={25} /><span>dbsentinal</span><h2>See the failure.<br />Verify the recovery.</h2><Link href="/#product" className="feature-primary-link">Launch the demo <Zap size={16} /></Link>
       </section>
 
       <footer className="feature-footer"><Link href="/" className="brand"><span className="brand-mark"><RotateCcw size={16} /></span><span>Rollback<span>Ready</span></span></Link><span>VERIFIED FOR HUMAN REVIEW · NEVER “SAFE TO DEPLOY”</span><Link href="/architecture">Technical architecture <ArrowRight size={13} /></Link></footer>
@@ -104,3 +109,4 @@ function statusTone(status: string) {
   if (["FAIL", "UNSAFE", "BLOCKED"].includes(key)) return "bad";
   return "warn";
 }
+

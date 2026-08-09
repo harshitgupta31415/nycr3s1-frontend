@@ -2,7 +2,12 @@ import type { Metadata } from "next";
 
 import FeaturePage from "@/app/components/feature-page";
 
-export const metadata: Metadata = { title: "Simulation Lab | RollbackReady", description: "Inject failures into Prisma migrations and inspect retry and recovery behavior." };
+export const metadata: Metadata = {
+  title: "Simulation Lab | dbsentinal",
+  description: "Inject failures into Prisma migrations and inspect retry and recovery behavior.",
+  alternates: { canonical: "/simulation" },
+  openGraph: { url: "/simulation" },
+};
 
 export default function SimulationPage() {
   return <FeaturePage eyebrow="SIMULATION LAB / CONTROLLED FAILURE" title="Failure is not an accident." accent="It is a test input." summary="The simulator creates a disposable PostgreSQL environment, applies history and fixtures, then stops execution at supported boundaries to reveal partial state, retry safety, transaction behavior, and recovery classification." metric="<90s" metricLabel="Stage target" variant="simulation" stages={[
@@ -17,3 +22,4 @@ export default function SimulationPage() {
     { label:"Recovery", value:"Forward fix required", status:"READY" },
   ]} />;
 }
+

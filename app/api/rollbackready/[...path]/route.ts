@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
-const backend = (process.env.BACKEND_URL ?? "http://localhost:8080").replace(/\/$/, "");
+const backend = process.env.BACKEND_URL?.replace(/\/$/, "");
 const clerkConfigured = Boolean(
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY,
 );
@@ -9,6 +9,12 @@ const clerkAuthRequired = process.env.NEXT_PUBLIC_CLERK_AUTH_REQUIRED === "true"
 type RouteContext = { params: Promise<{ path: string[] }> };
 
 async function proxy(request: NextRequest, context: RouteContext) {
+  if (!backend) {
+    return Response.json(
+      { error: { code: "BACKEND_NOT_CONFIGURED", message: "BACKEND_URL is not configured for this deployment." } },
+      { status: 503 },
+    );
+  }
   let token: string | null = null;
   if (clerkConfigured) {
     const session = await auth();
@@ -22,7 +28,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
       }
     } else if (clerkAuthRequired) {
       return Response.json(
-        { error: { code: "AUTHENTICATION_REQUIRED", message: "Sign in to use RollbackReady." } },
+        { error: { code: "AUTHENTICATION_REQUIRED", message: "Sign in to use dbsentinal." } },
         { status: 401, headers: { "www-authenticate": "Bearer" } },
       );
     }
@@ -39,14 +45,16 @@ async function proxy(request: NextRequest, context: RouteContext) {
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
   if (token) headers.set("authorization", `Bearer ${token}`);
-  const body = ["GET", "HEAD"].includes(request.method) ? undefined : await request.arrayBuffer();
-  const response = await fetch(target, {
+  const body = ["GET", "HEAD"].includes(request.method) ? undefined : request.body;
+  const requestInit: RequestInit & { duplex?: "half" } = {
     method: request.method,
     headers,
     body,
     cache: "no-store",
     signal: AbortSignal.timeout(120_000),
-  });
+  };
+  if (body) requestInit.duplex = "half";
+  const response = await fetch(target, requestInit);
   const responseHeaders = new Headers({
     "content-type": response.headers.get("content-type") ?? "application/json",
   });
@@ -54,7 +62,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
     const analysisId = path[1]?.replace(/[^a-zA-Z0-9-]/g, "") || "report";
     responseHeaders.set(
       "content-disposition",
-      `attachment; filename="rollbackready-${analysisId}.json"`,
+      `attachment; filename="dbsentinal-${analysisId}.json"`,
     );
   }
   const authenticate = response.headers.get("www-authenticate");
@@ -71,3 +79,4 @@ export const dynamic = "force-dynamic";
 export const GET = proxy;
 export const POST = proxy;
 export const DELETE = proxy;
+

@@ -1,4 +1,4 @@
-# RollbackReady landing-page frontend strategy
+# dbsentinal landing-page frontend strategy
 
 ## 1. Recommended packages and purpose
 
@@ -90,7 +90,7 @@ The interaction language is functional: cyan means active analysis/data flow, vi
 ```text
 RootLayout
 └─ Home / ClerkHome
-   └─ RollbackReadyExperience
+   └─ dbsentinalExperience
       ├─ Navbar + Radix Tooltip
       ├─ HeroConsole
       ├─ MigrationFlow (dynamic @xyflow/react)
@@ -116,3 +116,4 @@ Reusable primitives are intentionally limited to `Button`, layout helpers, and s
 5. Show the five-step safer release protocol and evidence report in under five minutes.
 6. Verify 390 px mobile layout, keyboard navigation, reduced motion, error states, and production build.
 7. Defer complex cursor effects, 3D, video, authenticated history, and additional dashboard routes.
+

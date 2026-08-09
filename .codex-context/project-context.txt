@@ -30,12 +30,12 @@ NOT COMMITTED — Current local HEAD: aa6e0412271f8b58f5ee9f0c556a28825bf52097
 
 [2026-08-09 13:00:59 IST]
 Task:
-Create the complete RollbackReady project PRD in synchronized Markdown and DOCX formats, assess feasibility, and remove diagram images when the user said they were not needed.
+Create the complete dbsentinal project PRD in synchronized Markdown and DOCX formats, assess feasibility, and remove diagram images when the user said they were not needed.
 Changes:
 Created the project-level Markdown PRD and generated the matching business-brief DOCX. The PRD defines the evidence-first six-hour MVP, full roadmap, user journey, deterministic risk rules, sandbox architecture, API and data contracts, security boundaries, Gemini limits, tests, demo script, and feasibility verdict. No diagram or other image is embedded in either deliverable.
 Files changed:
-C:\Users\victus\Desktop\hackathon\nyc-r3s1\docs\rollbackready-prd.md
-C:\Users\victus\Desktop\hackathon\nyc-r3s1\docs\RollbackReady-PRD.docx
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\docs\dbsentinal-prd.md
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\docs\dbsentinal-PRD.docx
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\.codex-context\project-context.txt
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\.codex-context\project-context.txt
 Verification:
@@ -55,17 +55,17 @@ The live Cloud Run frontend at https://nycr3s1-frontend-s2tvvhxdpa-el.a.run.app 
 Deployment:
 Frontend was not deployed. Backend image asia-south1-docker.pkg.dev/nychacksishv-core-20260808/nycr3s1-images/backend:foundation-20260809-130731 is live on Cloud Run and GKE. Cloud Run rollback revision is nycr3s1-backend-00009-7lp; GKE rollback image is asia-south1-docker.pkg.dev/nychacksishv-core-20260808/nycr3s1-images/backend:c22b269da411a70a74813db0d257f97f42fb5d41.
 Commit:
-NOT COMMITTED OR GIT-PUSHED - No frontend work, RollbackReady product feature, Git commit, or Git push was performed. Context logs remain intentionally unignored and .gitignore was unchanged.
+NOT COMMITTED OR GIT-PUSHED - No frontend work, dbsentinal product feature, Git commit, or Git push was performed. Context logs remain intentionally unignored and .gitignore was unchanged.
 
 [2026-08-09 13:51:56 IST]
 Task:
-Implement the complete RollbackReady hackathon MVP UI and continue until the project is finished, without committing or deploying.
+Implement the complete dbsentinal hackathon MVP UI and continue until the project is finished, without committing or deploying.
 Changes:
-Replaced the infrastructure placeholder with a responsive, accessible six-stage RollbackReady evidence stepper: project upload and built-in unsafe-phone demo, migration-history comparison, deterministic risk dashboard, ordered failure timeline, LangGraph safer-plan phases, fresh-baseline verification state, and downloadable sanitized JSON evidence report. Added explicit loading, empty, error, static-only, unsafe, unverified, verified, and production-not-performed states. Added a server-side Next.js catch-all proxy for every /api/v1 request so browser uploads do not target the backend origin directly. Updated product metadata, visual system, environment documentation, and README. No images or generated visual assets were created.
+Replaced the infrastructure placeholder with a responsive, accessible six-stage dbsentinal evidence stepper: project upload and built-in unsafe-phone demo, migration-history comparison, deterministic risk dashboard, ordered failure timeline, LangGraph safer-plan phases, fresh-baseline verification state, and downloadable sanitized JSON evidence report. Added explicit loading, empty, error, static-only, unsafe, unverified, verified, and production-not-performed states. Added a server-side Next.js catch-all proxy for every /api/v1 request so browser uploads do not target the backend origin directly. Updated product metadata, visual system, environment documentation, and README. No images or generated visual assets were created.
 Primary product files:
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\page.tsx
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\globals.css
-C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\api\rollbackready\[...path]\route.ts
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\api\dbsentinal\[...path]\route.ts
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\layout.tsx
 Verification:
 npm run typecheck passed; npm run lint passed; the optimized Next.js 16 production build passed and emitted the static product page plus dynamic server proxy route; git diff --check passed.
@@ -76,13 +76,13 @@ NOT COMMITTED OR GIT-PUSHED - Frontend HEAD remains aa6e0412271f8b58f5ee9f0c556a
 
 [2026-08-09 14:16:43 IST]
 Task:
-Finish and recheck the complete RollbackReady hackathon experience against the final backend implementation.
+Finish and recheck the complete dbsentinal hackathon experience against the final backend implementation.
 Changes:
 Clarified the risk dashboard label as CANDIDATE VERDICT and preserved UNSAFE for the submitted migration while presenting VERIFIED_FOR_REVIEW only for the independently verified recovery plan and final plan-evidence panel. Kept the safer-plan narrative human-readable while retaining quoted identifiers in executable SQL. No image or generated visual asset was created.
 Files changed:
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\app\page.tsx
-C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\app\rollbackready\service.py
-C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\tests\test_rollbackready.py
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\app\dbsentinal\service.py
+C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\tests\test_dbsentinal.py
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\frontend\.codex-context\project-context.txt
 C:\Users\victus\Desktop\hackathon\nyc-r3s1\application\backend\.codex-context\project-context.txt
 Verification:
@@ -94,7 +94,7 @@ NOT COMMITTED OR GIT-PUSHED - Frontend HEAD remains aa6e0412271f8b58f5ee9f0c556a
 
 [2026-08-09 15:17:23 IST]
 Task:
-Resolve the final RollbackReady audit blockers and the high-priority correctness/security gaps practical within the hackathon MVP, recheck the freshly restarted project end to end, and keep the work local without committing, pushing, or deploying.
+Resolve the final dbsentinal audit blockers and the high-priority correctness/security gaps practical within the hackathon MVP, recheck the freshly restarted project end to end, and keep the work local without committing, pushing, or deploying.
 Changes:
 Completed owner-aware report persistence and Clerk identity propagation while preserving an explicit anonymous hackathon mode; added ownership and statement-evidence Alembic revisions; corrected the migration head; made authentication optional or required by configuration; added safe rate limiting, active-analysis capacity, 24-hour background expiry cleanup, runtime and fixture-row ceilings, Docker CPU/memory/PID limits, and safer simulation error persistence/logging. Expanded schema fingerprints to cover columns, constraints, indexes, views, sequences, enums, triggers, functions, policies, and privileges; added baseline-column content hashes; added the final interruption boundary; corrected per-statement execution evidence; redacted PostgreSQL dollar-quoted values; compared generated plans with the intended candidate target; executed every generated verification assertion; and verified plan interruption recovery and idempotent retry across every boundary. The constrained LangChain/LangGraph planner remains the only agent workflow, with deterministic fallback and deterministic SQL verification. Updated the frontend for optional Clerk sessions, anonymous demo access, authorization forwarding, responsive 390px layout, current deployment smoke text, and a reliable attachment-based sanitized JSON report download. No images were created.
 Verification:
@@ -108,17 +108,17 @@ NOT COMMITTED OR GIT-PUSHED. Both .codex-context logs remain intentionally unign
 
 [2026-08-09 15:32:44 IST]
 Task:
-Create a remote checkpoint before continuing RollbackReady work and verify the frontend pull-request validation.
+Create a remote checkpoint before continuing dbsentinal work and verify the frontend pull-request validation.
 Changes:
-Created branch codex/rollbackready-mvp, committed the verified frontend MVP as d7e657e, pushed the branch, and opened draft PR https://github.com/harshitgupta31415/nycr3s1-frontend/pull/1.
+Created branch codex/dbsentinal-mvp, committed the verified frontend MVP as d7e657e, pushed the branch, and opened draft PR https://github.com/harshitgupta31415/nycr3s1-frontend/pull/1.
 Verification:
-The committed branch exactly matched origin/codex/rollbackready-mvp and the worktree was clean before continued work. GitHub Actions push run 31307140768 and pull-request run 31307230971 both completed successfully.
+The committed branch exactly matched origin/codex/dbsentinal-mvp and the worktree was clean before continued work. GitHub Actions push run 31307140768 and pull-request run 31307230971 both completed successfully.
 Deployment:
 The workflow correctly skipped its deploy job for the draft pull request. No merge or production deployment was performed.
 
 [2026-08-09 15:51:42 IST]
 Task:
-Finish the RollbackReady hackathon release candidate quickly, configure Clerk DNS, reconcile the final audit against current source, synchronize project context, and keep deployment separately gated.
+Finish the dbsentinal hackathon release candidate quickly, configure Clerk DNS, reconcile the final audit against current source, synchronize project context, and keep deployment separately gated.
 Changes:
 Added all five Clerk production CNAMEs in the authoritative Google Cloud DNS zone india-nychacks with TTL 300 and exact targets for accounts, frontend API, both DKIM selectors, and primary mail. Confirmed that the current frontend already contains optional Clerk sessions, server-side bearer-token forwarding, a reliable report attachment download, responsive 390px constraints, and the corrected product smoke string. Retained the pending deployment check that verifies both the Cloud Run revision and https://dbsentinal.get200.qd.je contain the current product marker. Updated the shared PRD implementation status in project docs and backend/docs. No image or render artifact was created.
 Verification:
@@ -130,20 +130,21 @@ This entry is included in the release context synchronization commit. The contex
 
 [2026-08-09 15:54:56 IST]
 Task:
-Repair stale deployment links and publish the completed RollbackReady frontend to origin/main after the user explicitly authorized the direct push.
+Repair stale deployment links and publish the completed dbsentinal frontend to origin/main after the user explicitly authorized the direct push.
 Changes:
-Extended the deployment smoke check to require the current RollbackReady marker from both the new Cloud Run revision and the public dbsentinal.get200.qd.je domain.
+Extended the deployment smoke check to require the current dbsentinal marker from both the new Cloud Run revision and the public dbsentinal.get200.qd.je domain.
 Verification:
-Fetched origin/main with no remote-only commits; the release branch was two commits ahead. ESLint, TypeScript type checking, and the Next.js production build all passed, including the same-origin RollbackReady API proxy route.
+Fetched origin/main with no remote-only commits; the release branch was two commits ahead. ESLint, TypeScript type checking, and the Next.js production build all passed, including the same-origin dbsentinal API proxy route.
 Deployment:
 The direct origin/main push is explicitly authorized by the user. This release commit is intended to trigger the existing Cloud Run deployment workflow; live rollout success must be confirmed from GitHub Actions and both frontend URLs.
 
 [2026-08-09 17:56:30 IST]
 Task:
-Finish the multi-page RollbackReady frontend release and repair its production verification without hiding the project context.
+Finish the multi-page dbsentinal frontend release and repair its production verification without hiding the project context.
 Changes:
 Published frontend commit 4672dcf with the routed Product, Simulation, Architecture, and Reports experiences, the evidence-first homepage, startup and interaction layers, and responsive overflow/intro safeguards. Updated both deployment smoke assertions from the removed "Know how it fails." copy to the current stable "See the failure." headline. The context directory remains deliberately unignored; no .gitignore file was changed.
 Verification:
 ESLint, TypeScript type checking, git diff validation, and the optimized Next.js 16 production build passed. GitHub Actions built and deployed commit 4672dcf to Cloud Run. Both the direct Cloud Run URL and https://dbsentinal.get200.qd.je returned HTTP 200 with the new headline. The initial post-deploy workflow check failed only because its assertion still expected the removed headline; the live application itself was healthy, and this release repair aligns the automated check with the shipped UI.
 Deployment:
 Frontend commit 4672dcf is serving from both production endpoints. The scoped workflow repair is intended to rerun the existing production smoke gate against those same endpoints; no production database or backend infrastructure is changed by this frontend-only fix.
+

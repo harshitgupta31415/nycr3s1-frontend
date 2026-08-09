@@ -92,6 +92,7 @@ jobs:
             SITE_URL=${{ env.SITE_URL }}
             NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.CLERK_PUBLISHABLE_KEY }}
             NEXT_PUBLIC_CLERK_AUTH_REQUIRED=false
+            CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
           flags: >-
             --port=8080
             --service-account=${{ env.RUNTIME_SERVICE_ACCOUNT }}

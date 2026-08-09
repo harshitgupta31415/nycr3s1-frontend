@@ -4,22 +4,8 @@ import Editor, { type BeforeMount } from "@monaco-editor/react";
 import * as Tabs from "@radix-ui/react-tabs";
 import { ShieldCheck, TriangleAlert } from "lucide-react";
 
-const unsafeSql = `-- Candidate migration: fails with existing rows
-ALTER TABLE "users"
-ADD COLUMN "phone" TEXT NOT NULL;`;
-
-const saferSql = `-- Expand: nullable first, preserve old clients
-ALTER TABLE "users"
-ADD COLUMN "phone" TEXT;
-
--- Backfill in bounded batches
-UPDATE "users"
-SET "phone" = 'synthetic-redacted'
-WHERE "phone" IS NULL;
-
--- Contract only after compatibility is verified
-ALTER TABLE "users"
-ALTER COLUMN "phone" SET NOT NULL;`;
+const noCandidateSql = "-- Run an analysis to inspect the candidate statement shape.";
+const noPlanSql = "-- Generate a recovery plan to inspect its proposed SQL.";
 
 const configureTheme: BeforeMount = (monaco) => {
   monaco.editor.defineTheme("rollbackready", {
@@ -67,15 +53,23 @@ function Code({ value }: { value: string }) {
   );
 }
 
-export default function SqlPreview() {
+export default function SqlPreview({
+  candidateSql,
+  planSql,
+  verified,
+}: {
+  candidateSql?: string | null;
+  planSql?: string | null;
+  verified: boolean;
+}) {
   return (
     <Tabs.Root className="sql-tabs" defaultValue="unsafe">
       <Tabs.List className="sql-tabs-list" aria-label="Compare unsafe and safer migration SQL">
-        <Tabs.Trigger value="unsafe"><TriangleAlert size={15} /> Unsafe candidate</Tabs.Trigger>
-        <Tabs.Trigger value="safer"><ShieldCheck size={15} /> Verified shape</Tabs.Trigger>
+        <Tabs.Trigger value="unsafe"><TriangleAlert size={15} /> Candidate evidence</Tabs.Trigger>
+        <Tabs.Trigger value="safer"><ShieldCheck size={15} /> {verified ? "Verified plan" : "Plan proposal"}</Tabs.Trigger>
       </Tabs.List>
-      <Tabs.Content value="unsafe"><Code value={unsafeSql} /></Tabs.Content>
-      <Tabs.Content value="safer"><Code value={saferSql} /></Tabs.Content>
+      <Tabs.Content value="unsafe"><Code value={candidateSql || noCandidateSql} /></Tabs.Content>
+      <Tabs.Content value="safer"><Code value={planSql || noPlanSql} /></Tabs.Content>
     </Tabs.Root>
   );
 }

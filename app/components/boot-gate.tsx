@@ -67,10 +67,10 @@ export default function BootGate({ children }: { children: ReactNode }) {
 
   if (phase === "ready") return children;
   return (
-    <div className={phase === "exiting" ? "boot-loader boot-loader-exit" : "boot-loader"} role="status" aria-live="polite" aria-label={`Loading RollbackReady: ${progress}%`}>
+    <div className={phase === "exiting" ? "boot-loader boot-loader-exit" : "boot-loader"} role="status" aria-live="polite" aria-label={`Loading dbsentinal: ${progress}%`}>
       <div className="boot-grid" aria-hidden="true" />
       <div className="boot-glow" aria-hidden="true" />
-      <header><span>ROLLBACKREADY</span><small>PRE-FLIGHT / VISUAL RUNTIME</small></header>
+      <header><span>dbsentinal</span><small>PRE-FLIGHT / VISUAL RUNTIME</small></header>
       <div className="boot-center">
         <div className="boot-dial" style={{ "--boot-progress": `${progress * 3.6}deg` } as CSSProperties}>
           <div><ShieldCheck size={30} /><strong>{progress}</strong><span>%</span></div>
@@ -92,3 +92,4 @@ export default function BootGate({ children }: { children: ReactNode }) {
 function BootCheck({ icon: Icon, label, done }: { icon: typeof Cpu; label: string; done: boolean }) {
   return <div className={done ? "boot-check boot-check-done" : "boot-check"}><Icon size={14} /><span>{label}</span>{done ? <Check size={13} /> : <i />}</div>;
 }
+
