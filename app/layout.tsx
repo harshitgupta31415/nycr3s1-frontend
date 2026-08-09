@@ -6,10 +6,11 @@ import InteractionLayer from "./components/interaction-layer";
 
 import "./globals.css";
 
-const siteUrl = process.env.SITE_URL ?? "http://localhost:3000";
-if (process.env.NODE_ENV === "production" && !process.env.SITE_URL) {
-  throw new Error("SITE_URL is required for production metadata.");
-}
+const siteUrl =
+  process.env.SITE_URL ??
+  (process.env.NODE_ENV === "production"
+    ? "https://dbsentinal.get200.qd.je"
+    : "http://localhost:3000");
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

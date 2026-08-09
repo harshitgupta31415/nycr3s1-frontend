@@ -20,6 +20,8 @@ env:
   RUNTIME_SERVICE_ACCOUNT: ${{ vars.GCP_RUNTIME_SERVICE_ACCOUNT }}
   BACKEND_URL: ${{ vars.GCP_BACKEND_URL }}
   SITE_URL: https://dbsentinal.get200.qd.je
+  CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsuZGJzZW50aW5hbC5nZXQyMDAucWQuamUk' }}
+  CLERK_AUTH_REQUIRED: ${{ vars.NEXT_PUBLIC_CLERK_AUTH_REQUIRED || 'false' }}
 
 jobs:
   test:
@@ -73,8 +75,9 @@ jobs:
         run: |
           IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPOSITORY}/frontend:${GITHUB_SHA}"
           docker build \
-            --build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.CLERK_PUBLISHABLE_KEY }}" \
-            --build-arg "NEXT_PUBLIC_CLERK_AUTH_REQUIRED=false" \
+            --build-arg "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.CLERK_PUBLISHABLE_KEY }}" \
+            --build-arg "NEXT_PUBLIC_CLERK_AUTH_REQUIRED=${{ env.CLERK_AUTH_REQUIRED }}" \
+            --build-arg "SITE_URL=${{ env.SITE_URL }}" \
             --tag "$IMAGE" .
           docker push "$IMAGE"
           echo "uri=$IMAGE" >> "$GITHUB_OUTPUT"
@@ -90,8 +93,8 @@ jobs:
           env_vars: |-
             BACKEND_URL=${{ env.BACKEND_URL }}
             SITE_URL=${{ env.SITE_URL }}
-            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.CLERK_PUBLISHABLE_KEY }}
-            NEXT_PUBLIC_CLERK_AUTH_REQUIRED=false
+            NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ env.CLERK_PUBLISHABLE_KEY }}
+            NEXT_PUBLIC_CLERK_AUTH_REQUIRED=${{ env.CLERK_AUTH_REQUIRED }}
             CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
           flags: >-
             --port=8080

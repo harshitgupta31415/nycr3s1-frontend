@@ -270,10 +270,21 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     if (backendStatus !== "ready") { setError("The analysis backend is not ready. Try again after connectivity is restored."); return; }
     const toastId = toast.loading("Staging the migration evidence bundle...");
     setBusy("Staging project bundle"); setError(null); setPlan(null); setVerification(null);
+    let eventSource: EventSource | null = null;
     try {
       const staged = await api<Analysis>("/analyses", { method: "POST", body: form });
       setWorkspaceMode(mode);
-      setAnalysis(staged); setBusy("Running deterministic PostgreSQL evidence pipeline");
+      setAnalysis(staged); setTimeline([]); setBusy("Running deterministic PostgreSQL evidence pipeline");
+      eventSource = new EventSource(`/api/rollbackready/analyses/${staged.id}/events`);
+      eventSource.addEventListener("timeline", (event) => {
+        try {
+          const timelineEvent = JSON.parse(event.data) as TimelineEvent;
+          setTimeline((current) => current.some((item) => item.sequence === timelineEvent.sequence) ? current : [...current, timelineEvent].sort((a, b) => a.sequence - b.sequence));
+        } catch {
+          // The final timeline fetch remains authoritative if a malformed stream event is ignored.
+        }
+      });
+      eventSource.addEventListener("complete", () => eventSource?.close());
       toast.loading("Breaking the migration at every supported boundary...", { id: toastId });
       const completed = await api<Analysis>(`/analyses/${staged.id}/run`, { method: "POST" });
       setAnalysis(completed); setTimeline(await api<TimelineEvent[]>(`/analyses/${staged.id}/timeline`));
@@ -282,7 +293,7 @@ function RollbackReadyExperience({ canUseProduct, isSignedIn, clerkEnabled: hasC
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Analysis failed.";
       setError(message); toast.error("Analysis stopped", { id: toastId, description: message });
-    } finally { setBusy(null); }
+    } finally { eventSource?.close(); setBusy(null); }
   }
 
   async function runDemo() { const form = new FormData(); form.set("use_demo", "true"); await stageAndRun(form, "sample"); }

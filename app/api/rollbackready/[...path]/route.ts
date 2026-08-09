@@ -41,7 +41,7 @@ async function proxy(request: NextRequest, context: RouteContext) {
 
   const { path } = await context.params;
   const target = `${backend}/api/v1/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
-  const headers = new Headers({ accept: "application/json" });
+  const headers = new Headers({ accept: request.headers.get("accept") ?? "application/json" });
   const contentType = request.headers.get("content-type");
   if (contentType) headers.set("content-type", contentType);
   if (token) headers.set("authorization", `Bearer ${token}`);
